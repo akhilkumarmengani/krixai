@@ -82,86 +82,393 @@ export function InsightsSection() {
 }
 
 // ═══ PLAYERS SECTION ═══
+// Strength labels per role (maps to radar[0..5])
+function getStrengthBars(p) {
+  const r = p.radar;
+  if (p.role === "Batter") {
+    return [
+      { label: "Powerplay",   pct: r[0], color: "#003DA5" },
+      { label: "Death Overs", pct: r[4], color: "#FF6B00" },
+      { label: "vs Pace",     pct: r[3], color: "#003DA5" },
+    ];
+  }
+  if (p.role === "Pacer") {
+    return [
+      { label: "Death Overs",  pct: r[4], color: "#003DA5" },
+      { label: "Economy",      pct: r[2], color: "#FF6B00" },
+      { label: "Wicket Rate",  pct: r[1], color: "#003DA5" },
+    ];
+  }
+  if (p.role === "Spinner") {
+    return [
+      { label: "Economy",      pct: r[1], color: "#003DA5" },
+      { label: "Wickets",      pct: r[5], color: "#FF6B00" },
+      { label: "Consistency",  pct: r[3], color: "#003DA5" },
+    ];
+  }
+  // All-rounder
+  return [
+    { label: "Batting",   pct: r[0], color: "#003DA5" },
+    { label: "Bowling",   pct: r[1], color: "#FF6B00" },
+    { label: "Pressure",  pct: r[3], color: "#003DA5" },
+  ];
+}
+
 export function PlayersSection() {
   const { tokens: tk, tournament } = useTheme();
   const router = useRouter();
   const [expanded, setExpanded] = useState(null);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(${tk.layout.cardMinWidth}px, 1fr))`, gap: tk.spacing.lg }}>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(auto-fill, minmax(340px, 1fr))`,
+        gap: tk.spacing.lg,
+      }}
+    >
       {players.map((p, i) => {
         const tm = getTeam(p.team);
         const isExpanded = expanded === i;
+        const strengths = getStrengthBars(p);
+        const formUp = p.trend === "up";
+        // Extract stat details for pills
+        const statParts = p.stat.split(" & ");
+
         return (
-          <Card key={i} style={{ overflow: "hidden", animation: `fadeUp 0.4s ease ${i * tk.motion.stagger}s both` }} onClick={() => setExpanded(isExpanded ? null : i)}>
-            <div style={{ padding: tk.spacing.xl }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: tk.spacing.md + 2 }}>
-                <div>
-                  <div style={{ fontSize: tk.fontSize.h4, fontWeight: tk.fontWeight.bold }}>{p.name}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: tk.spacing.sm, marginTop: 5 }}>
-                    <Badge color={tm.color}>{tm.short}</Badge>
-                    <span style={{ fontSize: tk.fontSize.md, color: tk.page.textMuted }}>{p.role}</span>
-                    <TrendBadge trend={p.trend} />
+          <div
+            key={i}
+            onClick={() => setExpanded(isExpanded ? null : i)}
+            style={{
+              background: "#fff",
+              borderRadius: 20,
+              border: "1px solid #ebebeb",
+              boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
+              overflow: "hidden",
+              cursor: "pointer",
+              transition: "box-shadow 0.2s, transform 0.2s",
+              animation: `fadeUp 0.4s ease ${i * tk.motion.stagger}s both`,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = "0 8px 28px rgba(0,0,0,0.1)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = "0 1px 6px rgba(0,0,0,0.06)";
+              e.currentTarget.style.transform = "none";
+            }}
+          >
+            {/* Top color bar */}
+            <div
+              style={{
+                height: 3,
+                background: `linear-gradient(90deg, ${tm.color}, #FF6B00)`,
+              }}
+            />
+
+            <div style={{ padding: "20px 22px" }}>
+              {/* Player header */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  marginBottom: 16,
+                }}
+              >
+                {/* Avatar */}
+                <div
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: "50%",
+                    background: `linear-gradient(135deg, ${tm.color}, #FF6B00)`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 22,
+                    flexShrink: 0,
+                    boxShadow: `0 3px 10px ${tm.color}40`,
+                  }}
+                >
+                  🏏
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 800,
+                      color: "#0a0a0a",
+                      letterSpacing: "-0.02em",
+                      fontFamily: tk.fontFamily,
+                    }}
+                  >
+                    {p.name}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "#888",
+                      marginTop: 2,
+                      fontFamily: tk.fontFamily,
+                    }}
+                  >
+                    {tm.short} · {p.role} · India
                   </div>
                 </div>
-                <WinGauge pct={p.rating} color={tm.color} size={58} label="RATING" />
               </div>
 
-              <div style={{ display: "flex", gap: 4, marginBottom: tk.spacing.md + 2 }}>
-                <div style={{ flex: 1, padding: `${tk.spacing.md}px ${tk.spacing.md + 2}px`, background: tk.page.cardBg, borderRadius: tk.radius.sm, textAlign: "center" }}>
-                  <div style={{ fontSize: 18, fontWeight: tk.fontWeight.bold }}>{p.stat}</div>
-                  <div style={{ fontSize: tk.fontSize.xs, color: tk.page.textDim, marginTop: 2 }}>LAST MATCH</div>
+              {/* Rating + Form row */}
+              <div
+                style={{
+                  background: "#f0f4ff",
+                  borderRadius: 12,
+                  padding: "12px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 12,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "#888",
+                      fontFamily: tk.fontFamily,
+                      marginBottom: 2,
+                    }}
+                  >
+                    KrixAI Rating
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 28,
+                      fontWeight: 900,
+                      color: "#003DA5",
+                      letterSpacing: "-0.03em",
+                      lineHeight: 1,
+                      fontFamily: tk.fontFamily,
+                    }}
+                  >
+                    {p.rating}
+                  </div>
                 </div>
-                <div style={{ flex: 1, padding: `${tk.spacing.md}px ${tk.spacing.md + 2}px`, background: tk.page.cardBg, borderRadius: tk.radius.sm, textAlign: "center" }}>
-                  <div style={{ fontSize: 18, fontWeight: tk.fontWeight.bold, color: tm.color }}>{p.rating}</div>
-                  <div style={{ fontSize: tk.fontSize.xs, color: tk.page.textDim, marginTop: 2 }}>AI RATING</div>
+                <div style={{ textAlign: "right" }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "#888",
+                      fontFamily: tk.fontFamily,
+                      marginBottom: 2,
+                    }}
+                  >
+                    Form Index
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 900,
+                      color: formUp ? "#15803d" : "#FF6B00",
+                      letterSpacing: "-0.03em",
+                      lineHeight: 1,
+                      fontFamily: tk.fontFamily,
+                    }}
+                  >
+                    {formUp ? "↑" : "●"} {p.rating + (formUp ? 2 : -1)}.{formUp ? "1" : "4"}
+                  </div>
                 </div>
               </div>
 
-              <div style={{ padding: `${tk.spacing.md}px ${tk.spacing.md + 2}px`, borderRadius: tk.radius.sm, background: `${tm.color}08`, border: `1px solid ${tm.color}12`, fontSize: tk.fontSize.md, color: tk.page.textSecondary, lineHeight: 1.5 }}>
-                🤖 {p.note}
+              {/* Stat pills */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  flexWrap: "wrap",
+                  marginBottom: 14,
+                }}
+              >
+                {statParts.map((s, si) => (
+                  <div
+                    key={si}
+                    style={{
+                      background: "#f5f5f3",
+                      border: "1px solid #ebebeb",
+                      borderRadius: 7,
+                      padding: "5px 10px",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#555",
+                      fontFamily: tk.fontFamily,
+                    }}
+                  >
+                    {p.role === "Batter" ? "Last match" : "Bowling"}{" "}
+                    <strong style={{ color: "#0a0a0a" }}>{s}</strong>
+                  </div>
+                ))}
+                <div
+                  style={{
+                    background: formUp ? "#dcfce7" : "#fff0e6",
+                    border: `1px solid ${formUp ? "#bbf7d0" : "#ffd6aa"}`,
+                    borderRadius: 7,
+                    padding: "5px 10px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: formUp ? "#15803d" : "#FF6B00",
+                    fontFamily: tk.fontFamily,
+                  }}
+                >
+                  {formUp ? "▲ Hot" : "● Steady"}
+                </div>
               </div>
 
+              {/* Strength bars */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {strengths.map((s, si) => (
+                  <div key={si}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#888",
+                        marginBottom: 4,
+                        fontFamily: tk.fontFamily,
+                      }}
+                    >
+                      <span>{s.label}</span>
+                      <span style={{ color: s.color }}>{s.pct}%</span>
+                    </div>
+                    <div
+                      style={{
+                        height: 6,
+                        background: "#f0f0f0",
+                        borderRadius: 100,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${s.pct}%`,
+                          height: "100%",
+                          background: s.color,
+                          borderRadius: 100,
+                          transition: "width 0.8s ease",
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* AI note */}
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: `${tm.color}08`,
+                  border: `1px solid ${tm.color}18`,
+                  fontSize: 12,
+                  color: tk.page.textSecondary,
+                  lineHeight: 1.5,
+                  fontFamily: tk.fontFamily,
+                }}
+              >
+                ✦ {p.note}
+              </div>
+
+              {/* Expanded: radar + wagon wheel */}
               {isExpanded && (
-                <div style={{ marginTop: tk.spacing.lg, paddingTop: tk.spacing.lg, borderTop: `1px solid ${tk.page.borderLight}`, display: "flex", gap: tk.spacing.lg, justifyContent: "center", flexWrap: "wrap", animation: "fadeUp 0.3s ease both" }}>
+                <div
+                  style={{
+                    marginTop: 16,
+                    paddingTop: 16,
+                    borderTop: `1px solid ${tk.page.borderLight}`,
+                    display: "flex",
+                    gap: 16,
+                    justifyContent: "center",
+                    flexWrap: "wrap",
+                    animation: "fadeUp 0.3s ease both",
+                  }}
+                >
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: tk.fontSize.sm, fontWeight: tk.fontWeight.semibold, marginBottom: tk.spacing.sm }}>Skill Breakdown</div>
+                    <div
+                      style={{
+                        fontSize: tk.fontSize.sm,
+                        fontWeight: tk.fontWeight.semibold,
+                        marginBottom: tk.spacing.sm,
+                        fontFamily: tk.fontFamily,
+                      }}
+                    >
+                      Skill Breakdown
+                    </div>
                     <RadarChart data={p.radar} color={tm.color} />
                   </div>
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: tk.fontSize.sm, fontWeight: tk.fontWeight.semibold, marginBottom: tk.spacing.sm }}>Scoring Zones</div>
+                    <div
+                      style={{
+                        fontSize: tk.fontSize.sm,
+                        fontWeight: tk.fontWeight.semibold,
+                        marginBottom: tk.spacing.sm,
+                        fontFamily: tk.fontFamily,
+                      }}
+                    >
+                      Scoring Zones
+                    </div>
                     <WagonWheel zones={p.zones} color={tm.color} />
                   </div>
                 </div>
               )}
-              {!isExpanded && (
-                <div style={{ marginTop: tk.spacing.md, fontSize: tk.fontSize.xs + 1, color: tournament.accent, fontWeight: tk.fontWeight.medium, textAlign: "center" }}>
+
+              {/* Expand hint / Profile button */}
+              {!isExpanded ? (
+                <div
+                  style={{
+                    marginTop: 12,
+                    fontSize: 12,
+                    color: "#FF6B00",
+                    fontWeight: 600,
+                    textAlign: "center",
+                    fontFamily: tk.fontFamily,
+                  }}
+                >
                   Click for detailed analysis ↓
                 </div>
-              )}
-              {isExpanded && (
+              ) : (
                 <button
-                  onClick={(e) => { e.stopPropagation(); router.push(`/player/${encodeURIComponent(p.name.toLowerCase().replace(/\s+/g, "-"))}`); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(
+                      `/player/${encodeURIComponent(
+                        p.name.toLowerCase().replace(/\s+/g, "-")
+                      )}`
+                    );
+                  }}
                   style={{
-                    marginTop: tk.spacing.lg,
+                    marginTop: 14,
                     width: "100%",
-                    padding: `${tk.spacing.md}px`,
-                    background: `${tm.color}12`,
-                    border: `1px solid ${tm.color}30`,
-                    borderRadius: tk.radius.md,
-                    color: tm.color,
+                    padding: "11px",
+                    background: "#fff",
+                    border: "1.5px solid #003DA5",
+                    borderRadius: 10,
+                    color: "#003DA5",
                     fontFamily: tk.fontFamily,
-                    fontSize: tk.fontSize.md,
-                    fontWeight: tk.fontWeight.bold,
+                    fontSize: 13,
+                    fontWeight: 700,
                     cursor: "pointer",
-                    transition: `all ${tk.motion.fast}`,
+                    letterSpacing: "-0.01em",
                   }}
                 >
                   View Full Profile & AI Analysis →
                 </button>
               )}
             </div>
-          </Card>
+          </div>
         );
       })}
     </div>

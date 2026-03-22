@@ -16,12 +16,13 @@ export const tournaments = {
     short: "IPL 2026",
     tagline: "84 Matches · 10 Teams · 1 Champion",
     startDate: "2026-03-28T19:30:00+05:30",
-    gradient: "linear-gradient(135deg, #1a0e3e 0%, #2d1669 30%, #4a1e8a 60%, #6b28b0 100%)",
-    accent: "#6c3baa",
-    accentLight: "#f0ecf8",
+    // India Blue gradient for IPL — India's home tournament
+    gradient: "linear-gradient(135deg, #010f2e 0%, #002380 40%, #003DA5 100%)",
+    accent: "#FF6B00",
+    accentLight: "#fff0e6",
     headerColors: [
-      "#e8384f", "#ffc220", "#5b2dff", "#004ba0", "#ec1c24",
-      "#f9cd16", "#3a225d", "#254aa5", "#e8702a", "#0078bc",
+      "#e8384f", "#ffc220", "#003DA5", "#004ba0", "#ec1c24",
+      "#f9cd16", "#3a225d", "#254aa5", "#FF6B00", "#0078bc",
     ],
   },
   t20wc2026: {
@@ -30,11 +31,12 @@ export const tournaments = {
     short: "T20 WC",
     tagline: "20 Teams · India & Sri Lanka",
     startDate: "2026-02-09T14:00:00+05:30",
-    gradient: "linear-gradient(135deg, #001d3d 0%, #003566 30%, #005599 60%, #0077cc 100%)",
-    accent: "#0077cc",
-    accentLight: "#e6f2ff",
+    // Deep India Blue for international cricket
+    gradient: "linear-gradient(135deg, #010f2e 0%, #003DA5 50%, #0052cc 100%)",
+    accent: "#FF6B00",
+    accentLight: "#fff0e6",
     headerColors: [
-      "#0066cc", "#ff9933", "#ffc220", "#006a4e",
+      "#003DA5", "#FF6B00", "#ffc220", "#006a4e",
       "#006633", "#1a1a1a", "#cf4520", "#1a3668",
     ],
   },

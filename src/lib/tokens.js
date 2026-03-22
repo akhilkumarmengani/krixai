@@ -9,7 +9,7 @@
 
 export const tokens = {
   // ─── Typography ───
-  fontFamily: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`,
+  fontFamily: `'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`,
   fontSize: {
     xs: 10,
     sm: 12,
@@ -66,30 +66,37 @@ export const tokens = {
     glow: (color) => `0 4px 16px ${color}40`,
   },
 
+  // ─── Brand Colors ───
+  brand: {
+    indiaBlue: "#003DA5",
+    saffron: "#FF6B00",
+    nearBlack: "#0a0a0a",
+  },
+
   // ─── Page Colors (light theme) ───
   page: {
-    bg: "#f0f2f5",
-    surface: "#fff",
-    border: "#e0e0e0",
-    borderLight: "#f0f0f0",
-    text: "#1c1e21",
-    textSecondary: "#4b4f56",
-    textMuted: "#65676b",
-    textDim: "#8a8d91",
-    hoverBg: "#f5f5f5",
-    inputBg: "#f0f2f5",
-    cardBg: "#f5f6f7",
+    bg: "#f7f7f5",
+    surface: "#ffffff",
+    border: "#ebebeb",
+    borderLight: "#f5f5f5",
+    text: "#0a0a0a",
+    textSecondary: "#444444",
+    textMuted: "#666666",
+    textDim: "#999999",
+    hoverBg: "#f0f0ef",
+    inputBg: "#f5f5f3",
+    cardBg: "#f5f5f3",
   },
 
   // ─── Status Colors ───
   status: {
-    live: "#4cd964",
-    up: "#1b8c3e",
-    upBg: "#e7f5ec",
-    steady: "#e67e00",
-    steadyBg: "#fff3e0",
-    danger: "#e8384f",
-    dangerBg: "#fdeaed",
+    live: "#22c55e",
+    up: "#15803d",
+    upBg: "#dcfce7",
+    steady: "#FF6B00",
+    steadyBg: "#fff0e6",
+    danger: "#dc2626",
+    dangerBg: "#fee2e2",
   },
 
   // ─── Animation ───
@@ -111,11 +118,11 @@ export const tokens = {
 
   // ─── AI Branding ───
   ai: {
-    gradient: "linear-gradient(135deg, #00d4ff, #7b2dff, #ff3366)",
-    shimmer: "linear-gradient(90deg, #00d4ff, #a78bfa, #ff6bcb, #00d4ff)",
+    gradient: "linear-gradient(135deg, #003DA5, #FF6B00)",
+    shimmer: "linear-gradient(90deg, #003DA5, #FF6B00, #003DA5)",
     orbSize: 22,
-    badgeBg: "linear-gradient(135deg, rgba(0,212,255,0.2), rgba(123,45,255,0.2))",
-    badgeBgHover: "linear-gradient(135deg, rgba(0,212,255,0.3), rgba(123,45,255,0.3))",
+    badgeBg: "linear-gradient(135deg, rgba(0,61,165,0.15), rgba(255,107,0,0.15))",
+    badgeBgHover: "linear-gradient(135deg, rgba(0,61,165,0.25), rgba(255,107,0,0.25))",
   },
 };
 

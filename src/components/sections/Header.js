@@ -1,19 +1,356 @@
 "use client";
 
 import { useTheme } from "@/context/ThemeContext";
-import { useCountdown } from "@/hooks/useCountdown";
-import { teams } from "@/data/teams";
 import { matches } from "@/data/matches";
-import { StadiumBg } from "@/components/graphics";
+import { getTeam } from "@/data/teams";
 
+// ── Live Match Card (hero right side) ──────────────────────────────────────
+function LiveMatchCard({ match }) {
+  const { tokens: tk, tournament: T } = useTheme();
+  const t1 = getTeam(match.t1);
+  const t2 = getTeam(match.t2);
+
+  const lastBalls = [
+    { type: "dot",    label: "·" },
+    { type: "run",    label: "1" },
+    { type: "four",   label: "4" },
+    { type: "dot",    label: "·" },
+    { type: "wicket", label: "W" },
+    { type: "six",    label: "6" },
+  ];
+
+  const ballStyle = {
+    dot:    { background: "#f0f0f0", color: "#888" },
+    run:    { background: "#e8f0ff", color: "#003DA5" },
+    four:   { background: "#003DA5", color: "#fff" },
+    wicket: { background: "#dc2626", color: "#fff" },
+    six:    { background: "#FF6B00", color: "#fff" },
+  };
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 20,
+        boxShadow: "0 2px 24px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.06)",
+        overflow: "hidden",
+        position: "relative",
+      }}
+    >
+      {/* Top gradient bar using team colors */}
+      <div style={{ height: 3, background: `linear-gradient(90deg, ${t1.color}, ${t2.color})` }} />
+
+      <div style={{ padding: "22px 26px" }}>
+        {/* Header row */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 18,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              background: "#fff0e6",
+              borderRadius: 100,
+              padding: "4px 10px",
+            }}
+          >
+            <div
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: "#FF6B00",
+                animation: "livePulse 2s infinite",
+              }}
+            />
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#FF6B00",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}
+            >
+              {match.badge || "UPCOMING"}
+            </span>
+          </div>
+          <span style={{ fontSize: 12, color: "#888", fontWeight: 500 }}>
+            {match.date} · {match.venue.split(",")[0]}
+          </span>
+        </div>
+
+        {/* Teams row */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ textAlign: "center", flex: 1 }}>
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 14,
+                background: t1.color,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 14,
+                fontWeight: 800,
+                color: "#fff",
+                margin: "0 auto 6px",
+                boxShadow: `0 4px 12px ${t1.color}40`,
+              }}
+            >
+              {t1.short}
+            </div>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 800,
+                color: "#0a0a0a",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {t1.name}
+            </div>
+          </div>
+
+          <div style={{ textAlign: "center", padding: "0 10px" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#bbb" }}>VS</div>
+          </div>
+
+          <div style={{ textAlign: "center", flex: 1 }}>
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 14,
+                background: t2.color,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 14,
+                fontWeight: 800,
+                color: "#fff",
+                margin: "0 auto 6px",
+                boxShadow: `0 4px 12px ${t2.color}40`,
+              }}
+            >
+              {t2.short}
+            </div>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 800,
+                color: "#0a0a0a",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {t2.name}
+            </div>
+          </div>
+        </div>
+
+        {/* Win probability */}
+        <div style={{ marginBottom: 14 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
+              marginBottom: 7,
+            }}
+          >
+            <span style={{ color: t1.color }}>{t1.short} · Win Probability</span>
+            <span style={{ color: t2.color }}>{t2.short}</span>
+          </div>
+          <div
+            style={{
+              height: 8,
+              background: "#f0f0f0",
+              borderRadius: 100,
+              overflow: "hidden",
+              display: "flex",
+            }}
+          >
+            <div
+              style={{
+                width: `${match.prob[0]}%`,
+                background: t1.color,
+                borderRadius: "100px 0 0 100px",
+              }}
+            />
+            <div
+              style={{
+                width: `${match.prob[1]}%`,
+                background: t2.color,
+                borderRadius: "0 100px 100px 0",
+              }}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 13,
+              fontWeight: 800,
+              marginTop: 5,
+            }}
+          >
+            <span style={{ color: t1.color }}>{match.prob[0]}%</span>
+            <span style={{ color: t2.color }}>{match.prob[1]}%</span>
+          </div>
+        </div>
+
+        {/* Last 6 balls */}
+        <div style={{ marginBottom: 0 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#888",
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
+              marginBottom: 8,
+            }}
+          >
+            Last 6 Balls
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {lastBalls.map((b, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  ...ballStyle[b.type],
+                }}
+              >
+                {b.label}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginTop: 14,
+            paddingTop: 12,
+            borderTop: "1px solid #f0f0f0",
+          }}
+        >
+          <div style={{ fontSize: 12, color: "#888" }}>
+            {match.time} IST · {match.venue.split(",")[0]}
+          </div>
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: "#FF6B00",
+              cursor: "pointer",
+            }}
+          >
+            View Full Analysis →
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── AI Insight Mini Card ───────────────────────────────────────────────────
+function AiInsightCard({ match }) {
+  const t1 = getTeam(match.t1);
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 14,
+        boxShadow: "0 1px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.05)",
+        padding: "14px 18px",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 12,
+      }}
+    >
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          background: "#003DA5",
+          borderRadius: 8,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          fontSize: 14,
+          color: "#fff",
+          fontWeight: 800,
+        }}
+      >
+        ✦
+      </div>
+      <div>
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: "#FF6B00",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginBottom: 3,
+          }}
+        >
+          KrixAI Live Insight
+        </div>
+        <div
+          style={{
+            fontSize: 13,
+            color: "#333",
+            fontWeight: 500,
+            lineHeight: 1.45,
+          }}
+        >
+          {t1.name}&apos;s spin attack will be key in the middle overs — 73% of T20s at this venue see 55+ powerplay scores. Watch the momentum shift around over 12.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Scrolling Ticker ───────────────────────────────────────────────────────
 function Ticker({ items }) {
   return (
     <div
       style={{
         overflow: "hidden",
-        background: "rgba(0,0,0,0.2)",
-        borderTop: "1px solid rgba(255,255,255,0.06)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        background: "rgba(0,61,165,0.04)",
+        borderTop: "1px solid rgba(0,61,165,0.08)",
+        borderBottom: "1px solid rgba(0,61,165,0.08)",
       }}
     >
       <div
@@ -32,7 +369,7 @@ function Ticker({ items }) {
             style={{
               fontSize: 12,
               fontWeight: 500,
-              color: "rgba(255,255,255,0.55)",
+              color: "#666",
               letterSpacing: 0.3,
             }}
           >
@@ -44,425 +381,396 @@ function Ticker({ items }) {
   );
 }
 
+// ── Main Header ────────────────────────────────────────────────────────────
 export default function Header({ onTabChange }) {
-  const { tokens: tk, tournament: T, tournamentId, setTournament, allTournaments } = useTheme();
-  const cd = useCountdown(T.startDate);
-  const firstMatch = matches[0];
-  const t1 = teams[firstMatch.t1];
-  const t2 = teams[firstMatch.t2];
+  const {
+    tokens: tk,
+    tournament: T,
+    tournamentId,
+    setTournament,
+    allTournaments,
+  } = useTheme();
+
+  const featuredMatch = matches[0];
 
   return (
     <header
-      style={{
-        background: T.gradient,
-        position: "relative",
-        overflow: "hidden",
-        transition: "background 0.6s ease",
-      }}
+      style={{ background: "#f7f7f5", position: "relative", overflow: "hidden" }}
     >
-      {/* Layer 1: Stadium SVG */}
-      <StadiumBg colors={T.headerColors} />
-
-      {/* Layer 2: Floating team badges */}
-      <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
-        {Object.entries(teams)
-          .slice(0, 10)
-          .map(([k, tm], i) => {
-            const sz = 28 + (i % 4) * 5;
-            return (
-              <div
-                key={k}
-                style={{
-                  position: "absolute",
-                  left: `${5 + i * 9.5}%`,
-                  top: `${15 + Math.sin(i * 1.2) * 30}%`,
-                  width: sz,
-                  height: sz,
-                  borderRadius: sz * 0.3,
-                  background: tm.color,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: sz > 36 ? 10 : 8,
-                  fontWeight: 800,
-                  color: "#fff",
-                  fontFamily: tk.fontFamily,
-                  opacity: 0.35,
-                  boxShadow: `0 0 ${sz}px ${tm.color}40`,
-                  animation: `floatBadge${i % 3} ${12 + i * 2}s ease-in-out infinite`,
-                  animationDelay: `${i * 0.4}s`,
-                }}
-              >
-                {tm.short}
-              </div>
-            );
-          })}
-      </div>
-
-      {/* Layer 3: Gradient mesh */}
+      {/* Subtle dot-grid background */}
       <div
         style={{
           position: "absolute",
           inset: 0,
+          backgroundImage: "radial-gradient(circle, #d0d0d0 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+          opacity: 0.4,
+          pointerEvents: "none",
+        }}
+      />
+      {/* India Blue radial glow, top-right */}
+      <div
+        style={{
+          position: "absolute",
+          top: -120,
+          right: -120,
+          width: 600,
+          height: 600,
+          borderRadius: "50%",
           background:
-            "radial-gradient(ellipse at 20% 50%, rgba(255,255,255,0.06) 0%, transparent 50%), radial-gradient(ellipse at 80% 30%, rgba(255,255,255,0.04) 0%, transparent 50%), radial-gradient(ellipse at 50% 100%, rgba(0,0,0,0.3) 0%, transparent 60%)",
+            "radial-gradient(circle, rgba(0,61,165,0.07) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }}
+      />
+      {/* Saffron glow, bottom-left */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: -80,
+          left: -80,
+          width: 400,
+          height: 400,
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle, rgba(255,107,0,0.05) 0%, transparent 70%)",
           pointerEvents: "none",
         }}
       />
 
-      {/* Layer 4: Particles */}
-      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
-        {Array.from({ length: 20 }, (_, i) => (
-          <div
-            key={i}
-            style={{
-              position: "absolute",
-              left: `${(i * 5.1 + 3) % 100}%`,
-              top: `${(i * 7.3 + 10) % 100}%`,
-              width: 2,
-              height: 2,
-              borderRadius: "50%",
-              background: "rgba(255,255,255,0.3)",
-              animation: `floatBadge${i % 3} ${8 + (i % 5) * 3}s ease-in-out infinite`,
-              animationDelay: `${(i % 7) * 0.7}s`,
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Content */}
       <div style={{ position: "relative", zIndex: 10 }}>
-        {/* Nav */}
+        {/* ── Sticky Nav ── */}
         <div
           style={{
-            maxWidth: tk.layout.maxWidth,
-            margin: "0 auto",
-            padding: `${tk.spacing.lg}px ${tk.spacing.xl}px`,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+            background: "rgba(247,247,245,0.92)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            borderBottom: "1px solid rgba(0,0,0,0.07)",
+            position: "sticky",
+            top: 0,
+            zIndex: 100,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: tk.spacing.md }}>
-            <img
-              src="/icon.svg"
-              alt="KrixAI"
-              style={{ width: 44, height: 44, borderRadius: tk.radius.lg, boxShadow: "0 2px 12px rgba(0,0,0,0.3)" }}
-            />
-            <div style={{ display: "flex", alignItems: "baseline", gap: 2 }}>
-              <span style={{ fontSize: tk.fontSize.h3, fontWeight: tk.fontWeight.black, color: "#fff", fontFamily: tk.fontFamily, letterSpacing: "-0.5px" }}>
-                Krix
-              </span>
-              <span style={{ fontSize: tk.fontSize.h3, fontWeight: tk.fontWeight.black, color: "#FF6B00", fontFamily: tk.fontFamily, letterSpacing: "-0.5px" }}>
-                AI
-              </span>
-            </div>
-          </div>
-
-          {/* Tournament switcher */}
           <div
             style={{
+              maxWidth: tk.layout.maxWidth + 80,
+              margin: "0 auto",
+              padding: `0 ${tk.spacing.xxxl}px`,
+              height: 60,
               display: "flex",
-              gap: 6,
-              background: "rgba(255,255,255,0.08)",
-              borderRadius: tk.radius.pill,
-              padding: 4,
+              alignItems: "center",
+              justifyContent: "space-between",
             }}
           >
-            {Object.values(allTournaments).map((t) => (
+            {/* Logo */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <img
+                src="/icon.svg"
+                alt="KrixAI"
+                style={{ width: 30, height: 30, borderRadius: 7 }}
+              />
+              <div style={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+                <span
+                  style={{
+                    fontSize: 17,
+                    fontWeight: 800,
+                    color: "#0a0a0a",
+                    letterSpacing: "-0.03em",
+                    fontFamily: tk.fontFamily,
+                  }}
+                >
+                  Krix
+                </span>
+                <span
+                  style={{
+                    fontSize: 17,
+                    fontWeight: 800,
+                    color: "#FF6B00",
+                    letterSpacing: "-0.03em",
+                    fontFamily: tk.fontFamily,
+                  }}
+                >
+                  AI
+                </span>
+              </div>
+            </div>
+
+            {/* Tournament switcher (center) */}
+            <div
+              style={{
+                display: "flex",
+                gap: 4,
+                background: "rgba(0,0,0,0.05)",
+                borderRadius: 100,
+                padding: 4,
+              }}
+            >
+              {Object.values(allTournaments).map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTournament(t.id)}
+                  style={{
+                    fontFamily: tk.fontFamily,
+                    fontSize: 13,
+                    fontWeight: tournamentId === t.id ? 600 : 400,
+                    padding: "6px 16px",
+                    borderRadius: 100,
+                    border: "none",
+                    cursor: "pointer",
+                    background:
+                      tournamentId === t.id ? "#fff" : "transparent",
+                    color:
+                      tournamentId === t.id ? "#FF6B00" : "#666",
+                    boxShadow:
+                      tournamentId === t.id
+                        ? "0 1px 4px rgba(0,0,0,0.12)"
+                        : "none",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {t.short}
+                </button>
+              ))}
+            </div>
+
+            {/* Right: Ask AI + Get Started */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+              }}
+            >
               <button
-                key={t.id}
-                onClick={() => setTournament(t.id)}
+                onClick={() => onTabChange("chat")}
                 style={{
                   fontFamily: tk.fontFamily,
-                  fontSize: tk.fontSize.md,
-                  fontWeight: tournamentId === t.id ? tk.fontWeight.semibold : tk.fontWeight.normal,
-                  padding: `${tk.spacing.sm}px ${tk.spacing.xl}px`,
-                  borderRadius: tk.radius.xxl,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: "#444",
+                  background: "transparent",
                   border: "none",
                   cursor: "pointer",
-                  background: tournamentId === t.id ? "#fff" : "transparent",
-                  color: tournamentId === t.id ? T.accent : "rgba(255,255,255,0.6)",
-                  transition: `all ${tk.motion.normal}`,
-                  boxShadow: tournamentId === t.id ? tk.shadow.md : "none",
                 }}
               >
-                {t.short}
+                Ask AI
               </button>
-            ))}
+              <button
+                onClick={() => onTabChange("matches")}
+                style={{
+                  fontFamily: tk.fontFamily,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  padding: "9px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "#FF6B00",
+                  color: "#fff",
+                  cursor: "pointer",
+                  letterSpacing: "-0.01em",
+                  transition: "background 0.15s",
+                }}
+              >
+                Get Started →
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Hero */}
+        {/* ── Split Hero ── */}
         <div
           style={{
-            maxWidth: tk.layout.maxWidth,
+            maxWidth: tk.layout.maxWidth + 80,
             margin: "0 auto",
-            padding: `${tk.spacing.xxl}px ${tk.spacing.xl}px ${tk.spacing.xxxl}px`,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
-            flexWrap: "wrap",
-            gap: 28,
+            padding: "56px 32px 48px",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 48,
+            alignItems: "center",
+            minHeight: "calc(100vh - 102px)",
           }}
         >
-          <div style={{ maxWidth: 580 }}>
-            {/* AI Badge */}
+          {/* Left: Headline + CTAs */}
+          <div>
+            {/* Badge pill */}
             <div
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 10,
-                marginBottom: 20,
-                padding: "7px 18px",
-                borderRadius: tk.radius.pill,
-                background: "rgba(255,255,255,0.1)",
-                backdropFilter: "blur(12px)",
-                border: "1px solid rgba(255,255,255,0.15)",
+                gap: 8,
+                background: "#fff",
+                border: "1px solid #e0e0e0",
+                borderRadius: 100,
+                padding: "5px 14px 5px 7px",
+                fontSize: 12,
+                fontWeight: 600,
+                color: "#444",
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                marginBottom: 26,
+                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+                fontFamily: tk.fontFamily,
               }}
             >
-              <div style={{ position: "relative", width: tk.ai.orbSize, height: tk.ai.orbSize }}>
-                <div
-                  style={{
-                    width: tk.ai.orbSize,
-                    height: tk.ai.orbSize,
-                    borderRadius: tk.ai.orbSize / 2,
-                    background: tk.ai.gradient,
-                    animation: "aiOrbSpin 3s linear infinite",
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 3,
-                    borderRadius: 8,
-                    background: "rgba(0,0,0,0.4)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <span style={{ fontSize: 8, fontWeight: tk.fontWeight.black, color: "#fff" }}>AI</span>
-                </div>
-              </div>
-              <span style={{ fontSize: tk.fontSize.md, fontWeight: tk.fontWeight.bold, color: "#fff", letterSpacing: 0.5 }}>
-                POWERED BY ARTIFICIAL INTELLIGENCE
-              </span>
               <div
                 style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 3,
-                  background: tk.status.live,
-                  animation: "livePulse 2s infinite",
+                  width: 20,
+                  height: 20,
+                  background: "#FF6B00",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 9,
+                  color: "#fff",
+                  fontWeight: 800,
                 }}
-              />
-            </div>
-
-            {/* Tournament line */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <span style={{ fontSize: tk.fontSize.lg, fontWeight: tk.fontWeight.semibold, color: "rgba(255,255,255,0.6)" }}>
-                {T.name}
-              </span>
-              <span style={{ fontSize: tk.fontSize.sm, color: "rgba(255,255,255,0.35)" }}>·</span>
-              <span style={{ fontSize: tk.fontSize.sm, color: "rgba(255,255,255,0.4)" }}>{T.tagline}</span>
+              >
+                AI
+              </div>
+              {T.short} · Powered by Artificial Intelligence
             </div>
 
             {/* Headline */}
             <h1
               style={{
-                fontSize: tk.fontSize.h1,
-                fontWeight: tk.fontWeight.black,
-                color: "#fff",
-                margin: "0 0 6px",
-                letterSpacing: "-1px",
-                lineHeight: 1.1,
+                fontSize: "clamp(42px, 5.5vw, 70px)",
+                fontWeight: 900,
+                lineHeight: 1.0,
+                letterSpacing: "-0.04em",
+                color: "#0a0a0a",
+                margin: "0 0 4px",
                 fontFamily: tk.fontFamily,
-                textShadow: "0 2px 30px rgba(0,0,0,0.4)",
               }}
             >
-              Cricket Intelligence,
+              Cricket
+              <br />
+              Intelligence,
             </h1>
             <h1
               style={{
-                fontSize: tk.fontSize.h1,
-                fontWeight: tk.fontWeight.black,
-                margin: "0 0 8px",
-                letterSpacing: "-1px",
-                lineHeight: 1.1,
+                fontSize: "clamp(42px, 5.5vw, 70px)",
+                fontWeight: 900,
+                lineHeight: 1.0,
+                letterSpacing: "-0.04em",
+                color: "#FF6B00",
+                margin: "0 0 22px",
                 fontFamily: tk.fontFamily,
-                background: tk.ai.shimmer,
-                backgroundSize: "300% 100%",
-                animation: "shimmerText 4s linear infinite",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
               }}
             >
-              Powered by AI.
+              Decoded by AI.
             </h1>
 
+            <p
+              style={{
+                fontSize: 17,
+                color: "#555",
+                lineHeight: 1.6,
+                maxWidth: 440,
+                marginBottom: 34,
+                letterSpacing: "-0.01em",
+                fontFamily: tk.fontFamily,
+              }}
+            >
+              Real-time match predictions, player analysis, and tactical
+              breakdowns — powered by AI trained on every {T.short} ball
+              ever bowled.
+            </p>
+
             {/* Feature pills */}
-            <div style={{ display: "flex", gap: tk.spacing.lg, marginBottom: 20, marginTop: tk.spacing.lg, flexWrap: "wrap" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                marginBottom: 30,
+                flexWrap: "wrap",
+              }}
+            >
               {[
-                { icon: "🧠", label: "AI Predictions", desc: "Ball-by-ball" },
-                { icon: "📊", label: "Smart Analytics", desc: "200+ data points" },
-                { icon: "⚡", label: "Real-time", desc: "Live intelligence" },
+                { icon: "🧠", label: "AI Predictions" },
+                { icon: "📊", label: "Live Analytics" },
+                { icon: "⚡", label: "Real-time" },
               ].map((f, i) => (
                 <div
                   key={i}
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: tk.spacing.sm,
-                    padding: `${tk.spacing.sm}px ${tk.spacing.md + 2}px`,
-                    borderRadius: tk.radius.md,
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.08)",
+                    gap: 6,
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    background: "#fff",
+                    border: "1px solid #ebebeb",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#444",
+                    fontFamily: tk.fontFamily,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
                   }}
                 >
-                  <span style={{ fontSize: 18 }}>{f.icon}</span>
-                  <div>
-                    <div style={{ fontSize: tk.fontSize.sm, fontWeight: tk.fontWeight.bold, color: "#fff" }}>{f.label}</div>
-                    <div style={{ fontSize: tk.fontSize.xs, color: "rgba(255,255,255,0.45)" }}>{f.desc}</div>
-                  </div>
+                  <span>{f.icon}</span>
+                  {f.label}
                 </div>
               ))}
             </div>
 
             {/* CTAs */}
-            <div style={{ display: "flex", gap: tk.spacing.md, alignItems: "center" }}>
+            <div
+              style={{ display: "flex", gap: 12, alignItems: "center" }}
+            >
               <button
                 onClick={() => onTabChange("matches")}
                 style={{
                   fontFamily: tk.fontFamily,
-                  fontSize: tk.fontSize.lg,
-                  fontWeight: tk.fontWeight.bold,
-                  padding: `${tk.spacing.md + 2}px ${tk.spacing.xxxl}px`,
-                  borderRadius: tk.radius.lg,
+                  fontSize: 15,
+                  fontWeight: 700,
+                  padding: "13px 26px",
+                  borderRadius: 10,
                   border: "none",
-                  background: "#fff",
-                  color: T.accent,
+                  background: "#FF6B00",
+                  color: "#fff",
                   cursor: "pointer",
-                  boxShadow: tk.shadow.xl,
-                  transition: `transform ${tk.motion.normal}`,
+                  letterSpacing: "-0.02em",
+                  boxShadow: "0 4px 14px rgba(255,107,0,0.35)",
+                  transition: "background 0.15s",
                 }}
               >
-                Explore Matches →
+                Explore {T.short} →
               </button>
               <button
                 onClick={() => onTabChange("chat")}
                 style={{
                   fontFamily: tk.fontFamily,
-                  fontSize: tk.fontSize.lg,
-                  fontWeight: tk.fontWeight.bold,
-                  padding: `${tk.spacing.md + 2}px ${tk.spacing.xxl + 4}px`,
-                  borderRadius: tk.radius.lg,
-                  background: tk.ai.badgeBg,
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  color: "#fff",
+                  fontSize: 15,
+                  fontWeight: 600,
+                  padding: "12px 22px",
+                  borderRadius: 10,
                   cursor: "pointer",
-                  backdropFilter: "blur(8px)",
-                  transition: `all ${tk.motion.normal}`,
+                  background: "#fff",
+                  color: "#0a0a0a",
+                  border: "1.5px solid #ddd",
+                  letterSpacing: "-0.02em",
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
+                  transition: "border-color 0.15s",
                 }}
               >
-                <span style={{ fontSize: 16 }}>✨</span> Ask AI Anything
+                <span style={{ color: "#003DA5", fontWeight: 800 }}>✦</span>
+                Ask KrixAI
               </button>
             </div>
           </div>
 
-          {/* Countdown */}
+          {/* Right: Live match card + AI insight */}
           <div
-            style={{
-              background: "rgba(255,255,255,0.08)",
-              backdropFilter: "blur(20px)",
-              borderRadius: tk.radius.xl + 2,
-              padding: `${tk.spacing.xxl}px ${tk.spacing.xxxl}px`,
-              border: "1px solid rgba(255,255,255,0.12)",
-              animation: "glowPulse 4s ease-in-out infinite",
-              minWidth: 260,
-            }}
+            style={{ display: "flex", flexDirection: "column", gap: 14 }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <div style={{ width: 6, height: 6, borderRadius: 3, background: tk.status.live, animation: "livePulse 2s infinite" }} />
-              <span style={{ fontSize: 11, fontWeight: tk.fontWeight.semibold, color: "rgba(255,255,255,0.5)", letterSpacing: 1 }}>
-                FIRST BALL IN
-              </span>
-            </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              {[
-                { v: cd.d, l: "days" },
-                { v: cd.h, l: "hrs" },
-                { v: cd.m, l: "min" },
-                { v: cd.s, l: "sec" },
-              ].map((u, i) => (
-                <div key={i} style={{ textAlign: "center", flex: 1 }}>
-                  <div
-                    style={{
-                      fontSize: tk.fontSize.countdown,
-                      fontWeight: tk.fontWeight.extrabold,
-                      color: "#fff",
-                      fontFamily: tk.fontFamily,
-                      lineHeight: 1,
-                      animation: u.l === "sec" ? "countTick 1s ease infinite" : "none",
-                      textShadow: "0 0 20px rgba(255,255,255,0.2)",
-                    }}
-                  >
-                    {String(u.v).padStart(2, "0")}
-                  </div>
-                  <div style={{ fontSize: tk.fontSize.xs, color: "rgba(255,255,255,0.4)", marginTop: 6, fontWeight: tk.fontWeight.medium }}>
-                    {u.l}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div
-              style={{
-                marginTop: tk.spacing.lg,
-                paddingTop: tk.spacing.md,
-                borderTop: "1px solid rgba(255,255,255,0.08)",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <div style={{ display: "flex", gap: 4 }}>
-                {[t1, t2].map((tm, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 7,
-                      background: tm.color,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 8,
-                      fontWeight: 800,
-                      color: "#fff",
-                      fontFamily: tk.fontFamily,
-                    }}
-                  >
-                    {tm.short}
-                  </div>
-                ))}
-              </div>
-              <div>
-                <div style={{ fontSize: tk.fontSize.sm, fontWeight: tk.fontWeight.semibold, color: "rgba(255,255,255,0.8)" }}>
-                  {t1.short} vs {t2.short}
-                </div>
-                <div style={{ fontSize: tk.fontSize.xs, color: "rgba(255,255,255,0.4)" }}>
-                  {firstMatch.date} · {firstMatch.venue.split(",")[0]}
-                </div>
-              </div>
-            </div>
+            <LiveMatchCard match={featuredMatch} />
+            <AiInsightCard match={featuredMatch} />
           </div>
         </div>
 
-        {/* Ticker */}
+        {/* ── Ticker ── */}
         <Ticker
           items={[
             "🏏 84 Matches",
@@ -475,7 +783,7 @@ export default function Header({ onTabChange }) {
             "⚡ Real-time Intelligence",
             "📈 Win Probability",
             "🤖 Powered by AI",
-            "🏆 IPL 2026",
+            `🏆 ${T.short}`,
             "🎪 March 28 - May 31",
           ]}
         />

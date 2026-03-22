@@ -1,5 +1,13 @@
 import "@/styles/globals.css";
+import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/context/ThemeContext";
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata = {
   title: "KrixAI — Cricket Intelligence Powered by AI",
@@ -36,7 +44,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.className}>
       <body style={{ margin: 0 }}>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
