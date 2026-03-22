@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <!-- Background gradient (India blue) -->
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#001A57"/>
+      <stop offset="100%" stop-color="#003DA5"/>
+    </linearGradient>
+    <linearGradient id="saffronGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FF6B00"/>
+      <stop offset="100%" stop-color="#FFB347"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+
+  <!-- Decorative cricket ball seam arcs (background) -->
+  <path d="M0 315 Q300 80 600 315" stroke="rgba(255,107,0,0.12)" stroke-width="3" fill="none"/>
+  <path d="M0 315 Q300 550 600 315" stroke="rgba(255,107,0,0.12)" stroke-width="3" fill="none"/>
+  <path d="M600 315 Q900 80 1200 315" stroke="rgba(255,107,0,0.08)" stroke-width="3" fill="none"/>
+  <path d="M600 315 Q900 550 1200 315" stroke="rgba(255,107,0,0.08)" stroke-width="3" fill="none"/>
+
+  <!-- Large circle outline -->
+  <circle cx="960" cy="315" r="240" stroke="rgba(255,255,255,0.04)" stroke-width="2" fill="none"/>
+  <circle cx="960" cy="315" r="180" stroke="rgba(255,255,255,0.04)" stroke-width="1.5" fill="none"/>
+
+  <!-- Icon badge -->
+  <rect x="80" y="195" width="160" height="160" rx="36" fill="rgba(255,255,255,0.12)"/>
+  <rect x="80" y="195" width="160" height="160" rx="36" stroke="rgba(255,255,255,0.2)" stroke-width="2" fill="none"/>
+  <!-- Seam on icon -->
+  <path d="M100 275 Q160 215 220 275" stroke="#FF6B00" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <path d="M100 275 Q160 335 220 275" stroke="#FF6B00" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <!-- K in icon -->
+  <text x="160" y="295" text-anchor="middle" font-family="Arial, sans-serif" font-size="72" font-weight="900" fill="white">K</text>
+
+  <!-- Wordmark -->
+  <text x="270" y="310" font-family="Arial, sans-serif" font-size="96" font-weight="900" fill="white" letter-spacing="-2">Krix</text>
+  <text x="548" y="310" font-family="Arial, sans-serif" font-size="96" font-weight="900" fill="#FF6B00" letter-spacing="-2">AI</text>
+
+  <!-- Tagline -->
+  <text x="270" y="360" font-family="Arial, sans-serif" font-size="24" font-weight="500" fill="rgba(255,255,255,0.5)" letter-spacing="4">CRICKET INTELLIGENCE · POWERED BY AI</text>
+
+  <!-- Bottom accent bar (saffron) -->
+  <rect x="80" y="570" width="200" height="4" rx="2" fill="#FF6B00"/>
+  <rect x="296" y="570" width="60" height="4" rx="2" fill="rgba(255,107,0,0.4)"/>
+
+  <!-- IPL 2026 badge -->
+  <rect x="80" y="410" width="180" height="40" rx="10" fill="rgba(255,107,0,0.15)"/>
+  <rect x="80" y="410" width="180" height="40" rx="10" stroke="#FF6B00" stroke-width="1.5" fill="none" opacity="0.5"/>
+  <text x="170" y="436" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#FF6B00" letter-spacing="1">🏏 IPL 2026</text>
+</svg>

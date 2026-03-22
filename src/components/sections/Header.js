@@ -144,40 +144,16 @@ export default function Header({ onTabChange }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: tk.spacing.md }}>
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: tk.radius.lg,
-                background: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 20,
-                fontWeight: tk.fontWeight.black,
-                color: T.accent,
-                fontFamily: tk.fontFamily,
-                boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
-              }}
-            >
-              C
-            </div>
-            <div>
-              <span style={{ fontSize: tk.fontSize.h3, fontWeight: tk.fontWeight.bold, color: "#fff", fontFamily: tk.fontFamily }}>
-                CricMind
+            <img
+              src="/icon.svg"
+              alt="KrixAI"
+              style={{ width: 44, height: 44, borderRadius: tk.radius.lg, boxShadow: "0 2px 12px rgba(0,0,0,0.3)" }}
+            />
+            <div style={{ display: "flex", alignItems: "baseline", gap: 2 }}>
+              <span style={{ fontSize: tk.fontSize.h3, fontWeight: tk.fontWeight.black, color: "#fff", fontFamily: tk.fontFamily, letterSpacing: "-0.5px" }}>
+                Krix
               </span>
-              <span
-                style={{
-                  fontSize: tk.fontSize.sm,
-                  fontWeight: tk.fontWeight.extrabold,
-                  color: "rgba(255,255,255,0.9)",
-                  marginLeft: 6,
-                  padding: "2px 8px",
-                  borderRadius: tk.radius.xs,
-                  background: tk.ai.badgeBg,
-                  letterSpacing: 0.5,
-                }}
-              >
+              <span style={{ fontSize: tk.fontSize.h3, fontWeight: tk.fontWeight.black, color: "#FF6B00", fontFamily: tk.fontFamily, letterSpacing: "-0.5px" }}>
                 AI
               </span>
             </div>

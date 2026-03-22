@@ -221,7 +221,7 @@ export default function PlayerProfilePage() {
               <div style={{ display: "flex", alignItems: "center", gap: tokens.spacing.md, marginBottom: tokens.spacing.lg }}>
                 <div style={{ width: tokens.ai.orbSize, height: tokens.ai.orbSize, borderRadius: tokens.radius.circle, background: tokens.ai.gradient, flexShrink: 0 }} />
                 <div>
-                  <div style={{ fontWeight: tokens.fontWeight.extrabold, fontSize: tokens.fontSize.xl }}>CricMind Player Intelligence</div>
+                  <div style={{ fontWeight: tokens.fontWeight.extrabold, fontSize: tokens.fontSize.xl }}>KrixAI Player Intelligence</div>
                   <div style={{ fontSize: tokens.fontSize.xs + 1, letterSpacing: "0.08em", color: tk.page.textMuted, fontWeight: tokens.fontWeight.semibold }}>POWERED BY ARTIFICIAL INTELLIGENCE</div>
                 </div>
               </div>

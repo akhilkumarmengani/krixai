@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" fill="none">
+  <!-- Icon badge -->
+  <rect x="0" y="4" width="56" height="56" rx="14" fill="#003DA5"/>
+  <!-- Cricket ball seam arc in saffron -->
+  <path d="M10 32 Q28 14 46 32" stroke="#FF6B00" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M10 32 Q28 50 46 32" stroke="#FF6B00" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <!-- K letter -->
+  <text x="28" y="38" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="26" font-weight="900" fill="#FFFFFF">K</text>
+
+  <!-- Wordmark: Krix -->
+  <text x="72" y="43" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="30" font-weight="800" fill="#003DA5" letter-spacing="-0.5">Krix</text>
+  <!-- AI suffix in saffron -->
+  <text x="163" y="43" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="30" font-weight="800" fill="#FF6B00" letter-spacing="-0.5">AI</text>
+
+  <!-- Tagline -->
+  <text x="72" y="58" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="500" fill="#003DA5" opacity="0.55" letter-spacing="1.5">CRICKET INTELLIGENCE</text>
+</svg>

@@ -1,7 +1,7 @@
-# CricMind Project — Instructions for Claude Cowork
+# KrixAI Project — Instructions for Claude Cowork
 
 ## Project Overview
-CricMind is an AI-powered cricket analytics platform targeting IPL 2026 (starts March 28, 2026).
+KrixAI is an AI-powered cricket analytics platform targeting IPL 2026 (starts March 28, 2026).
 Tech: Next.js 14, CricketData.org API, Anthropic Claude API (Haiku for chat, Sonnet for deep analysis).
 Monetization: Ad revenue → B2B broadcasting → fantasy tools → subscriptions.
 

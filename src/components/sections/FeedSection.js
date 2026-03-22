@@ -69,7 +69,7 @@ export default function FeedSection({ onTabChange }) {
                 lineHeight: 1.6,
               }}
             >
-              <span style={{ fontWeight: tk.fontWeight.semibold, color: tk.page.text }}>🤖 CricMind AI:</span>{" "}
+              <span style={{ fontWeight: tk.fontWeight.semibold, color: tk.page.text }}>🤖 KrixAI:</span>{" "}
               Chinnaswamy under lights is batting paradise — 73% of T20s see 55+ powerplay scores. RCB&apos;s spin in the middle overs will be crucial against SRH&apos;s aggressive middle order.
             </div>
             <div style={{ marginTop: tk.spacing.md, fontSize: tk.fontSize.sm, color: tk.page.textDim }}>📍 {featuredMatch.venue}</div>
@@ -89,7 +89,7 @@ export default function FeedSection({ onTabChange }) {
                 }}
               >AI</div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: tk.fontSize.lg, fontWeight: tk.fontWeight.semibold }}>CricMind Intelligence</div>
+                <div style={{ fontSize: tk.fontSize.lg, fontWeight: tk.fontWeight.semibold }}>KrixAI Intelligence</div>
                 <div style={{ fontSize: tk.fontSize.sm, color: tk.page.textDim }}>{ins.cat} · Just now</div>
               </div>
               <Sparkline data={ins.trend} color={tournament.accent} w={100} h={32} />
@@ -125,7 +125,7 @@ export default function FeedSection({ onTabChange }) {
             style={{ display: "flex", gap: tk.spacing.sm, padding: tk.spacing.md, background: tk.page.inputBg, borderRadius: tk.radius.xxl, cursor: "pointer", alignItems: "center" }}
           >
             <div style={{ width: 30, height: 30, borderRadius: 15, background: tournament.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", fontWeight: tk.fontWeight.bold }}>AI</div>
-            <span style={{ fontSize: tk.fontSize.md, color: tk.page.textDim }}>Ask CricMind anything...</span>
+            <span style={{ fontSize: tk.fontSize.md, color: tk.page.textDim }}>Ask KrixAI anything...</span>
           </div>
         </Card>
 

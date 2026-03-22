@@ -173,7 +173,7 @@ export function ChatSection() {
   const { tokens: tk, tournament } = useTheme();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([
-    { from: "ai", text: "Hey! I'm CricMind AI. Ask me about IPL 2026 — player matchups, venue analysis, tactical breakdowns, or fantasy picks." },
+    { from: "ai", text: "Hey! I'm KrixAI. Ask me about IPL 2026 — player matchups, venue analysis, tactical breakdowns, or fantasy picks." },
   ]);
   const [typing, setTyping] = useState(false);
   const endRef = useRef(null);
@@ -198,7 +198,7 @@ export function ChatSection() {
       const data = await res.json();
       setMessages((p) => [...p, { from: "ai", text: data.text || "Sorry, I couldn't analyze that. Try again!" }]);
     } catch {
-      setMessages((p) => [...p, { from: "ai", text: "📊 Connection issue. In the live version, CricMind AI analyzes every ball in real-time. Try again!" }]);
+      setMessages((p) => [...p, { from: "ai", text: "📊 Connection issue. In the live version, KrixAI analyzes every ball in real-time. Try again!" }]);
     }
     setTyping(false);
   };
@@ -212,7 +212,7 @@ export function ChatSection() {
         <div style={{ padding: `${tk.spacing.md + 2}px ${tk.spacing.xl}px`, borderBottom: `1px solid ${tk.page.borderLight}`, display: "flex", alignItems: "center", gap: tk.spacing.md }}>
           <div style={{ width: 36, height: 36, borderRadius: 18, background: tournament.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: tk.fontSize.md, fontWeight: tk.fontWeight.bold, color: "#fff" }}>AI</div>
           <div>
-            <div style={{ fontSize: tk.fontSize.lg, fontWeight: tk.fontWeight.semibold }}>CricMind AI</div>
+            <div style={{ fontSize: tk.fontSize.lg, fontWeight: tk.fontWeight.semibold }}>KrixAI</div>
             <div style={{ fontSize: tk.fontSize.sm, color: tk.page.textMuted, display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{ width: 6, height: 6, borderRadius: 3, background: tk.status.live, display: "inline-block" }} />
               Active · {tournament.short}
@@ -324,7 +324,7 @@ export function Footer() {
     <footer style={{ background: tk.page.surface, borderTop: `1px solid ${tk.page.border}`, padding: `18px ${tk.spacing.xl}px` }}>
       <div style={{ maxWidth: tk.layout.maxWidth, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: tk.spacing.sm }}>
-          <span style={{ fontSize: tk.fontSize.xl, fontWeight: tk.fontWeight.bold }}>CricMind</span>
+          <span style={{ fontSize: tk.fontSize.xl, fontWeight: tk.fontWeight.bold }}>KrixAI</span>
           <span style={{ fontSize: tk.fontSize.sm, color: tk.page.textDim }}>© 2026</span>
         </div>
         <div style={{ display: "flex", gap: tk.spacing.xl }}>

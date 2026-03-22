@@ -2,7 +2,7 @@ import "@/styles/globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 
 export const metadata = {
-  title: "CricMind AI — Cricket Intelligence Powered by AI",
+  title: "KrixAI — Cricket Intelligence Powered by AI",
   description:
     "AI-powered cricket analytics, live match predictions, player analysis, and tactical breakdowns. Every ball, decoded.",
   keywords: [
@@ -13,18 +13,22 @@ export const metadata = {
     "cricket analytics",
     "live scores",
     "fantasy cricket",
-    "CricMind",
+    "KrixAI",
   ],
+  icons: {
+    icon: "/favicon.svg",
+  },
   openGraph: {
-    title: "CricMind AI — Cricket Intelligence Powered by AI",
+    title: "KrixAI — Cricket Intelligence Powered by AI",
     description:
       "Real-time AI match intelligence, player analytics, and tactical breakdowns.",
     type: "website",
-    siteName: "CricMind",
+    siteName: "KrixAI",
+    images: [{ url: "/og-image.svg", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "CricMind AI — Cricket Intelligence Powered by AI",
+    title: "KrixAI — Cricket Intelligence Powered by AI",
     description:
       "Real-time AI match intelligence, player analytics, and tactical breakdowns.",
   },

@@ -1,4 +1,4 @@
-# CricMind AI — Cricket Intelligence Powered by AI
+# KrixAI AI — Cricket Intelligence Powered by AI
 
 AI-powered cricket analytics platform for IPL 2026 and beyond.
 

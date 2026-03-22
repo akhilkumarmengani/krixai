@@ -459,7 +459,7 @@ export default function MatchDetailPage() {
               <div style={{ display: "flex", alignItems: "center", gap: tokens.spacing.md, marginBottom: tokens.spacing.lg }}>
                 <div style={{ width: tokens.ai.orbSize, height: tokens.ai.orbSize, borderRadius: tokens.radius.circle, background: tokens.ai.gradient }} />
                 <div>
-                  <div style={{ fontWeight: tokens.fontWeight.extrabold, fontSize: tokens.fontSize.h4 }}>CricMind AI Analysis</div>
+                  <div style={{ fontWeight: tokens.fontWeight.extrabold, fontSize: tokens.fontSize.h4 }}>KrixAI Match Analysis</div>
                   <div style={{ fontSize: tokens.fontSize.sm, letterSpacing: "0.08em", color: tk.page.textMuted, fontWeight: tokens.fontWeight.semibold }}>POWERED BY ARTIFICIAL INTELLIGENCE</div>
                 </div>
               </div>

@@ -33,7 +33,7 @@ const MODELS = {
 };
 
 // System prompt (shared across all calls — keep it concise to save tokens)
-const SYSTEM_PROMPT = `You are CricMind AI, an expert cricket analyst specializing in IPL and T20 cricket. You have deep knowledge of player stats, venue conditions, tactical patterns, and historical data. Answer with specific numbers, percentages, and comparisons. Be concise (2-3 short paragraphs max). Never make up statistics — if unsure, say so.`;
+const SYSTEM_PROMPT = `You are KrixAI, an expert cricket analyst specializing in IPL and T20 cricket. You have deep knowledge of player stats, venue conditions, tactical patterns, and historical data. Answer with specific numbers, percentages, and comparisons. Be concise (2-3 short paragraphs max). Never make up statistics — if unsure, say so.`;
 
 /**
  * Generate AI analysis for a match (uses DEEP model for quality)
@@ -75,7 +75,7 @@ async function callClaude(prompt, model, messages = null) {
   if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
     return {
       success: true,
-      text: "📊 [Demo Mode] Configure your Anthropic API key in .env.local to enable live AI analysis. Get one at console.anthropic.com (separate from your Claude Pro subscription).",
+      text: "📊 [Demo Mode] Configure your Anthropic API key in .env.local to enable live AI analysis.",
       isDemo: true,
     };
   }
