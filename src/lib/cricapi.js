@@ -10,35 +10,72 @@
 const CRICAPI_BASE = "https://api.cricapi.com/v1";
 
 // ─── IPL franchise name → internal short code ─────────────────────────────
+//
+// Exact-match map for known API spellings. The fuzzy keyword check below
+// catches any new spelling variants the API introduces.
 
 export const IPL_TEAM_MAP = {
+  // Current names
   "Royal Challengers Bengaluru": "RCB",
-  "Royal Challengers Bangalore":  "RCB", // legacy name
-  "Sunrisers Hyderabad":          "SRH",
-  "Mumbai Indians":               "MI",
-  "Chennai Super Kings":          "CSK",
-  "Kolkata Knight Riders":        "KKR",
-  "Rajasthan Royals":             "RR",
-  "Delhi Capitals":               "DC",
-  "Punjab Kings":                 "PBKS",
-  "Kings XI Punjab":              "PBKS", // legacy name
-  "Gujarat Titans":               "GT",
-  "Lucknow Super Giants":         "LSG",
+  "Sunrisers Hyderabad":         "SRH",
+  "Mumbai Indians":              "MI",
+  "Chennai Super Kings":         "CSK",
+  "Kolkata Knight Riders":       "KKR",
+  "Rajasthan Royals":            "RR",
+  "Delhi Capitals":              "DC",
+  "Punjab Kings":                "PBKS",
+  "Gujarat Titans":              "GT",
+  "Lucknow Super Giants":        "LSG",
+  // Legacy / alternate spellings
+  "Royal Challengers Bangalore": "RCB",
+  "Kings XI Punjab":             "PBKS",
+  "Delhi Daredevils":            "DC",
+  "Deccan Chargers":             "SRH",
+  "Rising Pune Supergiant":      "RPS",
+  "Rising Pune Supergiants":     "RPS",
+  "Pune Warriors":               "PWI",
 };
 
-const IPL_TEAM_NAMES = new Set(Object.keys(IPL_TEAM_MAP));
+// Keyword-based fallback — catches any spelling variant the exact map misses.
+// Order matters: more specific phrases first.
+const IPL_KEYWORD_MAP = [
+  { kw: "super kings",        code: "CSK" },
+  { kw: "mumbai indians",     code: "MI"  },
+  { kw: "knight riders",      code: "KKR" },
+  { kw: "sunrisers",          code: "SRH" },
+  { kw: "royal challengers",  code: "RCB" },
+  { kw: "rajasthan royals",   code: "RR"  },
+  { kw: "delhi capitals",     code: "DC"  },
+  { kw: "daredevils",         code: "DC"  },
+  { kw: "punjab kings",       code: "PBKS"},
+  { kw: "kings xi",           code: "PBKS"},
+  { kw: "gujarat titans",     code: "GT"  },
+  { kw: "lucknow super",      code: "LSG" },
+];
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
-
-/** Is this an IPL match? Both teams must be known IPL franchises. */
-export function isIPLMatch(match) {
-  if (!match.teams || match.teams.length < 2) return false;
-  return IPL_TEAM_NAMES.has(match.teams[0]) && IPL_TEAM_NAMES.has(match.teams[1]);
+/** Returns the short code if the name looks like an IPL team, otherwise null. */
+function resolveIPLCode(apiName) {
+  if (!apiName) return null;
+  // 1. Try exact match first
+  if (IPL_TEAM_MAP[apiName]) return IPL_TEAM_MAP[apiName];
+  // 2. Keyword fuzzy match
+  const lower = apiName.toLowerCase();
+  for (const { kw, code } of IPL_KEYWORD_MAP) {
+    if (lower.includes(kw)) return code;
+  }
+  return null;
 }
 
-/** API full name → internal short code */
+/** Is this an IPL match? Both teams must resolve to a known IPL code. */
+export function isIPLMatch(match) {
+  if (!match.teams || match.teams.length < 2) return false;
+  return resolveIPLCode(match.teams[0]) !== null &&
+         resolveIPLCode(match.teams[1]) !== null;
+}
+
+/** API full name → internal short code (falls back to apiName itself) */
 export function teamCode(apiName) {
-  return IPL_TEAM_MAP[apiName] || apiName;
+  return resolveIPLCode(apiName) || apiName;
 }
 
 /** Is the match currently live (in progress)? */
@@ -285,32 +322,59 @@ export function normalizeMatch(raw) {
   };
 }
 
-// ─── API fetch functions ────────────────────────────────────────────────────
+// ─── Module-level in-process cache ─────────────────────────────────────────
+//
+// Next.js `next: { revalidate }` only helps when the same Vercel function
+// instance is reused. A module-level cache ensures we never hit the API more
+// than once per TTL window even across different fetch calls in the same
+// process. This dramatically reduces API hits during bursts (debug visits,
+// concurrent users, etc.).
 
-/** Fetch live / upcoming IPL matches from currentMatches endpoint. */
-export async function fetchCurrentIPLMatches(apiKey) {
-  const res = await fetch(
-    `${CRICAPI_BASE}/currentMatches?apikey=${apiKey}&offset=0`,
-    { next: { revalidate: 60 } }
-  );
-  const json = await res.json();
-  if (json.status !== "success") {
-    console.warn("CricAPI currentMatches:", json.status, json.reason || "");
-    return [];
+const _cache = {};
+
+async function cachedFetch(url, ttlSeconds) {
+  const now   = Date.now();
+  const entry = _cache[url];
+  if (entry && now - entry.ts < ttlSeconds * 1000) {
+    return entry.data;
   }
-  return (json.data || []).filter(isIPLMatch);
+  const res  = await fetch(url, { next: { revalidate: ttlSeconds } });
+  const json = await res.json();
+  // IMPORTANT: Only cache successful responses.
+  // Never cache errors, rate-limit blocks, or auth failures — they should
+  // be retried immediately on the next request.
+  if (json.status === "success") {
+    _cache[url] = { data: json, ts: now };
+  }
+  return json;
 }
 
-/** Fetch recent matches list (for last completed IPL match). */
+// ─── API fetch functions ────────────────────────────────────────────────────
+
+/**
+ * Fetch live / upcoming IPL matches from currentMatches endpoint.
+ * Cached for 2 minutes in-process to prevent rate limiting.
+ */
+export async function fetchCurrentIPLMatches(apiKey) {
+  const url  = `${CRICAPI_BASE}/currentMatches?apikey=${apiKey}&offset=0`;
+  const json = await cachedFetch(url, 120); // 2-minute cache
+  if (json.status !== "success") {
+    console.warn("CricAPI currentMatches:", json.status, json.reason || "");
+    return { data: [], raw: json };
+  }
+  return { data: (json.data || []).filter(isIPLMatch), raw: json };
+}
+
+/**
+ * Fetch full match list (for last completed + upcoming fallback).
+ * Cached for 5 minutes in-process.
+ */
 export async function fetchAllIPLMatches(apiKey, offset = 0) {
-  const res = await fetch(
-    `${CRICAPI_BASE}/matches?apikey=${apiKey}&offset=${offset}`,
-    { next: { revalidate: 300 } }
-  );
-  const json = await res.json();
+  const url  = `${CRICAPI_BASE}/matches?apikey=${apiKey}&offset=${offset}`;
+  const json = await cachedFetch(url, 300); // 5-minute cache
   if (json.status !== "success") {
     console.warn("CricAPI matches:", json.status, json.reason || "");
-    return [];
+    return { data: [], raw: json };
   }
-  return (json.data || []).filter(isIPLMatch);
+  return { data: (json.data || []).filter(isIPLMatch), raw: json };
 }

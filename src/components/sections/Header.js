@@ -106,36 +106,8 @@ function LiveMatchCard({ match, loading, isDemo }) {
     );
   }
 
-  if (!match) {
-    return (
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: 20,
-          boxShadow: "0 2px 24px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.06)",
-          padding: "48px 32px",
-          display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center",
-          textAlign: "center", gap: 12, minHeight: 280,
-        }}
-      >
-        <div style={{ fontSize: 40 }}>🏏</div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#333" }}>
-          No IPL match scheduled
-        </div>
-        <div style={{ fontSize: 13, color: "#888", lineHeight: 1.6, maxWidth: 260 }}>
-          Live scores and win probability will appear here when an IPL match is in progress or upcoming.
-        </div>
-        <div style={{
-          marginTop: 8, fontSize: 11, color: "#bbb",
-          background: "#f7f8ff", padding: "6px 14px",
-          borderRadius: 100, fontWeight: 600,
-        }}>
-          API connected · Waiting for schedule
-        </div>
-      </div>
-    );
-  }
+  // match=null is handled by NoMatchCard in the parent — nothing to render here
+  if (!match) return null;
 
   const t1 = getTeam(match.team1?.code || match.t1);
   const t2 = getTeam(match.team2?.code || match.t2);
@@ -589,6 +561,79 @@ function Ticker({ items }) {
   );
 }
 
+// ── No-match card with debug link ────────────────────────────────────────────
+function NoMatchCard({ source }) {
+  const isError   = source === "error";
+  const isNoKey   = source === "no_key";
+  const isBlocked = source === "blocked";
+
+  const icon  = isBlocked ? "⏳" : isError ? "⚠️" : isNoKey ? "🔑" : "🏏";
+
+  const title = isBlocked ? "API rate limited — retrying in ~15 min"
+              : isError   ? "API error"
+              : isNoKey   ? "API key not configured"
+              :             "No IPL match scheduled";
+
+  const body  = isBlocked
+    ? "CricAPI temporarily blocked requests due to too many calls in a short window. This clears automatically. No action needed."
+    : isNoKey
+    ? "Add CRICKET_API_KEY to your Vercel environment variables and redeploy."
+    : isError
+    ? "Something went wrong fetching data. See Debug API for details."
+    : "Live scores will appear here when an IPL match is live or upcoming.";
+
+  const warn  = isBlocked || isNoKey || isError;
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 20,
+        boxShadow: "0 2px 24px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.06)",
+        padding: "40px 32px 28px",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        textAlign: "center", gap: 10, minHeight: 280,
+      }}
+    >
+      <div style={{ fontSize: 38 }}>{icon}</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: "#333" }}>{title}</div>
+      <div style={{ fontSize: 13, color: "#888", lineHeight: 1.6, maxWidth: 290 }}>{body}</div>
+
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8,
+        marginTop: 6, flexWrap: "wrap", justifyContent: "center",
+      }}>
+        <div style={{
+          fontSize: 11, fontWeight: 600,
+          color:      warn ? "#c2410c" : "#888",
+          background: warn ? "#fff7ed" : "#f7f8ff",
+          padding: "5px 12px", borderRadius: 100,
+          border: `1px solid ${warn ? "#fed7aa" : "#eef0ff"}`,
+        }}>
+          {isBlocked ? "⏳ Rate limited · clears in ~15 min"
+         : isNoKey   ? "⚠ CRICKET_API_KEY missing"
+         : isError   ? "⚠ API error"
+         :             "✓ API connected · Waiting for schedule"}
+        </div>
+        <a
+          href="/api/ipl/debug"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontSize: 11, fontWeight: 700, color: "#003DA5",
+            background: "#f0f4ff", padding: "5px 12px",
+            borderRadius: 100, textDecoration: "none",
+            border: "1px solid #c7d7ff",
+          }}
+        >
+          Debug API →
+        </a>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Header ──────────────────────────────────────────────────────────────
 export default function Header({ onTabChange, demoMode = false, setDemoMode }) {
   const {
@@ -922,11 +967,15 @@ export default function Header({ onTabChange, demoMode = false, setDemoMode }) {
 
           {/* Right: Live match card + AI insight */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <LiveMatchCard
-              match={matchData}
-              loading={loadingMatch}
-              isDemo={demoMode || dataSource === "demo"}
-            />
+            {/* Show NoMatchCard when no data and not loading */}
+            {!loadingMatch && !matchData && !demoMode
+              ? <NoMatchCard source={dataSource} />
+              : <LiveMatchCard
+                  match={matchData}
+                  loading={loadingMatch}
+                  isDemo={demoMode || dataSource === "demo"}
+                />
+            }
             <AiInsightCard match={matchData} loading={loadingMatch} />
           </div>
         </div>

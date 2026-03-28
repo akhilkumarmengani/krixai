@@ -97,10 +97,18 @@ export async function GET(request) {
   try {
     // ── 1. Fetch current IPL matches ──────────────────────────────────────
     debugLog.push("Fetching /currentMatches…");
-    const currentRaw = await fetchCurrentIPLMatches(API_KEY);
-    debugLog.push(`currentMatches → ${currentRaw.length} IPL match(es)`);
-    if (currentRaw.length > 0) {
-      debugLog.push("Found: " + currentRaw.map(m => m.name).join(" | "));
+    const { data: currentRaw, raw: currentRawFull } = await fetchCurrentIPLMatches(API_KEY);
+
+    if (currentRawFull.status !== "success") {
+      debugLog.push(`currentMatches API error: ${currentRawFull.status} — ${currentRawFull.reason || ""}`);
+    } else {
+      debugLog.push(`currentMatches → ${currentRaw.length} IPL match(es) (${currentRawFull.data?.length || 0} total returned)`);
+      if (currentRaw.length > 0) {
+        debugLog.push("Found: " + currentRaw.map(m => m.name).join(" | "));
+      }
+      if (currentRawFull.info) {
+        debugLog.push(`API usage: ${currentRawFull.info.hitsToday}/${currentRawFull.info.hitsLimit} hits today`);
+      }
     }
 
     // Prioritise live over upcoming
@@ -117,8 +125,13 @@ export async function GET(request) {
 
     // ── 2. Fetch all IPL matches (for last completed + upcoming fallback) ──
     debugLog.push("Fetching /matches…");
-    const allMatches = await fetchAllIPLMatches(API_KEY, 0);
-    debugLog.push(`/matches → ${allMatches.length} IPL match(es)`);
+    const { data: allMatches, raw: allMatchesRawFull } = await fetchAllIPLMatches(API_KEY, 0);
+
+    if (allMatchesRawFull.status !== "success") {
+      debugLog.push(`/matches API error: ${allMatchesRawFull.status} — ${allMatchesRawFull.reason || ""}`);
+    } else {
+      debugLog.push(`/matches → ${allMatches.length} IPL match(es) (${allMatchesRawFull.data?.length || 0} total returned)`);
+    }
 
     // If currentMatches returned nothing, find the next upcoming from /matches
     if (!currentMatch) {
@@ -157,7 +170,19 @@ export async function GET(request) {
       debugLog.push("No completed IPL match found in API response");
     }
 
-    const source = (currentMatch || previousMatch) ? "live" : "empty";
+    // Detect rate-limit block
+    const isBlocked =
+      (currentRawFull.reason || "").toLowerCase().includes("blocked") ||
+      (allMatchesRawFull.reason || "").toLowerCase().includes("blocked");
+
+    const source = isBlocked
+      ? "blocked"
+      : (currentMatch || previousMatch) ? "live" : "empty";
+
+    // Don't cache error/blocked responses — retry sooner
+    const cacheHeader = isBlocked
+      ? "no-store"
+      : "s-maxage=120, stale-while-revalidate=180";
 
     return Response.json({
       current:  currentMatch,
@@ -165,7 +190,7 @@ export async function GET(request) {
       source,
       debug:    { log: debugLog },
     }, {
-      headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=120" },
+      headers: { "Cache-Control": cacheHeader },
     });
 
   } catch (err) {
