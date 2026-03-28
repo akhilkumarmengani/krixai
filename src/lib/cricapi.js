@@ -371,7 +371,7 @@ export async function fetchCurrentIPLMatches(apiKey) {
 }
 
 /**
- * Fetch full match list (for last completed + upcoming fallback).
+ * Fetch full match list for a single offset page.
  * Cached for 5 minutes in-process.
  */
 export async function fetchAllIPLMatches(apiKey, offset = 0) {
@@ -382,4 +382,31 @@ export async function fetchAllIPLMatches(apiKey, offset = 0) {
     return { data: [], raw: json };
   }
   return { data: (json.data || []).filter(isIPLMatch), raw: json };
+}
+
+/**
+ * Fetch IPL matches from multiple pages of /matches concurrently.
+ * Covers schedules spread across pagination boundaries (25 per page).
+ * Returns merged IPL matches + the raw response from page 0 for metadata.
+ */
+export async function fetchAllIPLMatchesMultiPage(apiKey, offsets = [0, 25]) {
+  const results = await Promise.all(
+    offsets.map(offset => fetchAllIPLMatches(apiKey, offset))
+  );
+
+  // Deduplicate by match id across pages
+  const seen   = new Set();
+  const merged = [];
+  for (const { data } of results) {
+    for (const match of data) {
+      if (!seen.has(match.id)) {
+        seen.add(match.id);
+        merged.push(match);
+      }
+    }
+  }
+
+  // Return merged data + raw from first successful page for metadata/status
+  const primaryRaw = results[0]?.raw ?? { status: "failure" };
+  return { data: merged, raw: primaryRaw };
 }

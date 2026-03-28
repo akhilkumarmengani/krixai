@@ -9,7 +9,7 @@
 
 import {
   fetchCurrentIPLMatches,
-  fetchAllIPLMatches,
+  fetchAllIPLMatchesMultiPage,
   IPL_TEAM_MAP,
 } from "@/lib/cricapi";
 

@@ -13,14 +13,21 @@
 
 import {
   fetchCurrentIPLMatches,
-  fetchAllIPLMatches,
+  fetchAllIPLMatchesMultiPage,
   normalizeMatch,
   seedPrediction,
   isCompleted,
   isLive,
+  isIPLMatch,
 } from "@/lib/cricapi";
 
+import scheduleData from "@/data/ipl2026-schedule.json";
+
 const API_KEY = process.env.CRICKET_API_KEY;
+
+// Static schedule loaded from the committed JSON (no API calls needed for this).
+// Populated by running: node scripts/fetch-ipl-schedule.mjs
+const STATIC_SCHEDULE = (scheduleData?.matches || []).filter(isIPLMatch);
 
 // ─── Demo data (only used when toggle is ON) ────────────────────────────────
 
@@ -127,25 +134,37 @@ export async function GET(request) {
       debugLog.push(`Using match: ${currentMatch.name} (${currentMatch.isLive ? "LIVE" : "upcoming"})`);
     }
 
-    // ── 2. Fetch all IPL matches (for last completed + upcoming fallback) ──
-    debugLog.push("Fetching /matches…");
-    const { data: allMatches, raw: allMatchesRawFull } = await fetchAllIPLMatches(API_KEY, 0);
+    // ── 2. Upcoming + completed — prefer static schedule, fall back to API ──
+    const useStaticSchedule = STATIC_SCHEDULE.length > 0;
+    let allMatches;
+    let allMatchesRawFull = { status: "success", reason: "" };
 
-    if (allMatchesRawFull.status !== "success") {
-      debugLog.push(`/matches API error: ${allMatchesRawFull.status} — ${allMatchesRawFull.reason || ""}`);
+    if (useStaticSchedule) {
+      // Zero API calls — use the committed schedule JSON.
+      allMatches = STATIC_SCHEDULE;
+      debugLog.push(`Using static schedule: ${allMatches.length} IPL match(es) (no API call)`);
     } else {
-      debugLog.push(`/matches → ${allMatches.length} IPL match(es) (${allMatchesRawFull.data?.length || 0} total returned)`);
+      // Static file not yet populated — fall back to fetching 2 pages from API.
+      debugLog.push("Static schedule empty — fetching /matches (offset 0 + 25) from API…");
+      const result = await fetchAllIPLMatchesMultiPage(API_KEY, [0, 25]);
+      allMatches       = result.data;
+      allMatchesRawFull = result.raw;
+      if (allMatchesRawFull.status !== "success") {
+        debugLog.push(`/matches API error: ${allMatchesRawFull.status} — ${allMatchesRawFull.reason || ""}`);
+      } else {
+        debugLog.push(`/matches (2 pages) → ${allMatches.length} IPL match(es)`);
+      }
     }
 
-    // If currentMatches returned nothing, find the next upcoming from /matches
+    // If currentMatches returned nothing, find the next upcoming from the schedule
     if (!currentMatch) {
-      debugLog.push("No match in /currentMatches — searching /matches for next upcoming…");
+      debugLog.push("No match in /currentMatches — searching schedule for next upcoming…");
       const now = new Date();
       const upcoming = allMatches
         .filter(m => {
           if (isCompleted(m)) return false;
           const matchDate = new Date(m.dateTimeGMT || m.date);
-          return matchDate >= now || m.status?.toLowerCase().includes("match not started");
+          return matchDate >= now || (m.status || "").toLowerCase().includes("match not started");
         })
         .sort((a, b) =>
           new Date(a.dateTimeGMT || a.date) - new Date(b.dateTimeGMT || b.date)
@@ -154,14 +173,15 @@ export async function GET(request) {
         currentMatch = normalizeMatch(upcoming[0]);
         debugLog.push(`Next upcoming: ${upcoming[0].name} on ${upcoming[0].date}`);
       } else {
-        debugLog.push("No upcoming IPL match found in /matches either");
+        debugLog.push("No upcoming IPL match found in schedule");
       }
     }
 
-    const completed = allMatches.filter(
-      m => isCompleted(m) && m.id !== (sortedCurrent[0]?.id || currentMatch?.id)
-    );
-    debugLog.push(`Completed IPL matches: ${completed.length}`);
+    // Last completed match (exclude whichever is currently showing as "current")
+    const completed = allMatches
+      .filter(m => isCompleted(m) && m.id !== (sortedCurrent[0]?.id || currentMatch?.id))
+      .sort((a, b) => new Date(b.dateTimeGMT || b.date) - new Date(a.dateTimeGMT || a.date));
+    debugLog.push(`Completed IPL matches in schedule: ${completed.length}`);
 
     let previousMatch = null;
     if (completed.length > 0) {
@@ -171,13 +191,13 @@ export async function GET(request) {
       const correct = prev.winner === pred.predictedTeam;
       previousMatch = { ...prev, prediction: { ...pred, correct } };
     } else {
-      debugLog.push("No completed IPL match found in API response");
+      debugLog.push("No completed IPL match found yet");
     }
 
-    // Detect rate-limit block
+    // Detect rate-limit block (only possible if we called the API)
     const isBlocked =
       (currentRawFull.reason || "").toLowerCase().includes("blocked") ||
-      (allMatchesRawFull.reason || "").toLowerCase().includes("blocked");
+      (!useStaticSchedule && (allMatchesRawFull.reason || "").toLowerCase().includes("blocked"));
 
     const source = isBlocked
       ? "blocked"

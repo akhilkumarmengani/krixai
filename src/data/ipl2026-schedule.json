@@ -1,0 +1,7 @@
+{
+  "fetchedAt": "",
+  "season": "IPL 2026",
+  "note": "Run 'node scripts/fetch-ipl-schedule.mjs' with CRICKET_API_KEY set to populate this file.",
+  "matchCount": 0,
+  "matches": []
+}
