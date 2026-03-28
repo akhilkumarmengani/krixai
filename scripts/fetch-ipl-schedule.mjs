@@ -1,13 +1,13 @@
 /**
- * One-time script: fetch the full IPL 2026 schedule from CricAPI and save
- * it as a static JSON file so the app never needs to hit the API for
- * upcoming match lookups.
+ * One-time script: fetch the full IPL 2026 schedule from Cricbuzz (RapidAPI)
+ * and save it as a static JSON file so the app never needs to hit the API
+ * for upcoming match lookups.
  *
  * Run from project root:
- *   CRICKET_API_KEY=your_key node scripts/fetch-ipl-schedule.mjs
+ *   RAPIDAPI_KEY=your_key node scripts/fetch-ipl-schedule.mjs
  *
  * Output: src/data/ipl2026-schedule.json
- * Commit that file — the app will use it as the schedule source of truth.
+ * Commit that file — the app reads it directly at runtime.
  */
 
 import fs   from "fs";
@@ -15,117 +15,121 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const API_KEY   = process.env.CRICKET_API_KEY;
-const BASE_URL  = "https://api.cricapi.com/v1";
+const API_KEY   = process.env.RAPIDAPI_KEY;
+const HOST      = "cricbuzz-cricket.p.rapidapi.com";
+const BASE_URL  = `https://${HOST}`;
 const OUT_PATH  = path.join(__dirname, "../src/data/ipl2026-schedule.json");
 
-// ── IPL team detection ───────────────────────────────────────────────────────
-// Same team list as cricapi.js so filtering is consistent.
-const IPL_TEAMS = new Set([
-  "Chennai Super Kings",
-  "Mumbai Indians",
-  "Royal Challengers Bengaluru",
-  "Royal Challengers Bangalore",
-  "Kolkata Knight Riders",
-  "Sunrisers Hyderabad",
-  "Delhi Capitals",
-  "Rajasthan Royals",
-  "Punjab Kings",
-  "Gujarat Titans",
-  "Lucknow Super Giants",
-  "Punjab Kings",
-]);
-
-function isIPLMatch(match) {
-  const teams = match.teams || [];
-  // At least one team must be an IPL team (handles partial data)
-  return teams.some(t => IPL_TEAMS.has(t));
+if (!API_KEY) {
+  console.error("❌  Set RAPIDAPI_KEY environment variable first.");
+  console.error("    Example: RAPIDAPI_KEY=abc123 node scripts/fetch-ipl-schedule.mjs");
+  process.exit(1);
 }
 
-function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms));
+const HEADERS = {
+  "X-RapidAPI-Key":  API_KEY,
+  "X-RapidAPI-Host": HOST,
+};
+
+// ── IPL series detection ─────────────────────────────────────────────────────
+
+function isIPLSeries(name = "") {
+  const s = name.toLowerCase();
+  return s.includes("indian premier league") || s.includes(" ipl ") ||
+         s.startsWith("ipl ") || s.endsWith(" ipl") || s === "ipl";
 }
 
-async function fetchPage(offset) {
-  const url = `${BASE_URL}/matches?apikey=${API_KEY}&offset=${offset}`;
-  console.log(`  GET ${url.replace(API_KEY, "***")}`);
-  const res  = await fetch(url);
-  const json = await res.json();
-  return json;
+// ── Flatten Cricbuzz nested response ────────────────────────────────────────
+
+function extractMatches(data) {
+  const out = [];
+  for (const typeGroup of data?.typeMatches || []) {
+    for (const sm of typeGroup?.seriesMatches || []) {
+      const wrapper = sm?.seriesAdWrapper;
+      if (!wrapper?.matches) continue;
+      for (const m of wrapper.matches) {
+        out.push({ ...m, _seriesName: wrapper.seriesName || "" });
+      }
+    }
+  }
+  return out;
 }
+
+function filterIPL(matches) {
+  return matches.filter(m => isIPLSeries(m._seriesName || m.matchInfo?.seriesName || ""));
+}
+
+// ── Fetch helpers ────────────────────────────────────────────────────────────
+
+async function fetchEndpoint(path) {
+  const url = `${BASE_URL}${path}`;
+  console.log(`  GET ${url}`);
+  const res  = await fetch(url, { headers: HEADERS });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} from ${url}`);
+  }
+  return res.json();
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  if (!API_KEY) {
-    console.error("❌  Set CRICKET_API_KEY environment variable first.");
-    console.error("    Example: CRICKET_API_KEY=abc123 node scripts/fetch-ipl-schedule.mjs");
-    process.exit(1);
-  }
+  console.log("🏏  Fetching IPL 2026 schedule from Cricbuzz (RapidAPI)…\n");
 
-  console.log("🏏  Fetching IPL 2026 schedule from CricAPI…\n");
+  const seen = new Set();
+  const all  = [];
 
-  const allIPL = [];
-  const seen   = new Set();
-  let offset   = 0;
-  let emptyPages = 0;
-
-  while (true) {
-    const json = await fetchPage(offset);
-
-    if (json.status !== "success") {
-      console.error(`\n❌  API error at offset ${offset}:`, json.status, json.reason || "");
-      console.error("    Saving what we have so far…");
-      break;
-    }
-
-    const matches = json.data || [];
-    console.log(`  offset=${offset} → ${matches.length} total, API hits today: ${json.info?.hitsToday ?? "?"}`);
-
-    if (matches.length === 0) break;
-
-    let newIPL = 0;
+  function addMatches(matches) {
     for (const m of matches) {
-      if (!seen.has(m.id) && isIPLMatch(m)) {
-        seen.add(m.id);
-        allIPL.push(m);
-        newIPL++;
+      const id = String(m.matchInfo?.matchId || Math.random());
+      if (!seen.has(id)) {
+        seen.add(id);
+        all.push(m);
       }
     }
-
-    console.log(`  → ${newIPL} new IPL match(es) found (running total: ${allIPL.length})`);
-
-    // Stop if the page had no new IPL matches twice in a row (we've gone past the season)
-    if (newIPL === 0) {
-      emptyPages++;
-      if (emptyPages >= 2) {
-        console.log("\n  No more IPL matches found in two consecutive pages — stopping.");
-        break;
-      }
-    } else {
-      emptyPages = 0;
-    }
-
-    if (matches.length < 25) break;     // Last page
-    if (offset >= 250) break;            // Safety limit
-
-    offset += 25;
-    await sleep(600);                    // Respect rate limit (~100 req/min)
   }
 
-  // Sort by date ascending
-  allIPL.sort((a, b) => new Date(a.dateTimeGMT || a.date) - new Date(b.dateTimeGMT || b.date));
+  // Fetch all three endpoints to get the full season picture
+  for (const endpoint of ["/matches/v1/upcoming", "/matches/v1/live", "/matches/v1/recent"]) {
+    try {
+      const data = await fetchEndpoint(endpoint);
+      const iplMatches = filterIPL(extractMatches(data));
+      console.log(`  ${endpoint} → ${iplMatches.length} IPL match(es) found`);
+      addMatches(iplMatches);
+    } catch (err) {
+      console.warn(`  ⚠️  ${endpoint} failed: ${err.message}`);
+    }
+  }
+
+  // Sort by startDate ascending
+  all.sort((a, b) =>
+    parseInt(a.matchInfo?.startDate || 0) - parseInt(b.matchInfo?.startDate || 0)
+  );
 
   // Write output
   fs.mkdirSync(path.dirname(OUT_PATH), { recursive: true });
   const output = {
     fetchedAt:  new Date().toISOString(),
     season:     "IPL 2026",
-    matchCount: allIPL.length,
-    matches:    allIPL,
+    source:     "Cricbuzz via RapidAPI",
+    matchCount: all.length,
+    matches:    all,
   };
   fs.writeFileSync(OUT_PATH, JSON.stringify(output, null, 2));
 
-  console.log(`\n✅  Saved ${allIPL.length} IPL matches to src/data/ipl2026-schedule.json`);
-  console.log("    Commit this file and push — the app will use it for schedule lookups.");
+  console.log(`\n✅  Saved ${all.length} IPL matches to src/data/ipl2026-schedule.json`);
+  console.log("    Commit this file and push — the app will use it for upcoming match lookups.\n");
+
+  // Print a preview
+  console.log("Preview (first 5 matches):");
+  for (const m of all.slice(0, 5)) {
+    const t1    = m.matchInfo?.team1?.teamSName || m.matchInfo?.team1?.teamName || "?";
+    const t2    = m.matchInfo?.team2?.teamSName || m.matchInfo?.team2?.teamName || "?";
+    const ms    = parseInt(m.matchInfo?.startDate || 0);
+    const date  = ms ? new Date(ms).toISOString().slice(0, 16).replace("T", " ") + " UTC" : "?";
+    const venue = m.matchInfo?.venueName || "?";
+    console.log(`  ${t1} vs ${t2}  —  ${date}  —  ${venue}`);
+  }
 }
 
 main().catch(err => {

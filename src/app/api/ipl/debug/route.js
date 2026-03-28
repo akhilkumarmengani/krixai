@@ -1,100 +1,91 @@
 /**
  * GET /api/ipl/debug
  * ══════════════════
- * Diagnostic endpoint for troubleshooting CricAPI data issues.
+ * Diagnostic endpoint — shows what Cricbuzz is returning for live,
+ * upcoming, and recent IPL matches.
  *
- * Uses the SAME cached fetch functions as /api/ipl — visiting this endpoint
- * will NOT consume extra API hits if called within the cache window.
+ * Uses the SAME cached fetch functions as /api/ipl so visiting this
+ * endpoint within the cache window costs zero extra API hits.
  */
 
 import {
-  fetchCurrentIPLMatches,
-  fetchAllIPLMatchesMultiPage,
-  IPL_TEAM_MAP,
-} from "@/lib/cricapi";
+  fetchLiveIPLMatches,
+  fetchUpcomingIPLMatches,
+  fetchRecentIPLMatches,
+  extractAllMatches,
+  filterIPL,
+} from "@/lib/cricbuzz";
 
-const API_KEY     = process.env.CRICKET_API_KEY;
-const IPL_NAMES   = new Set(Object.keys(IPL_TEAM_MAP));
+const API_KEY = process.env.RAPIDAPI_KEY;
 
 export async function GET() {
-  const keyPresent = !!(API_KEY && API_KEY !== "YOUR_API_KEY_HERE");
-
-  if (!keyPresent) {
+  if (!API_KEY) {
     return Response.json({
-      error: "CRICKET_API_KEY not set",
-      hint:  "Add CRICKET_API_KEY to Vercel → Settings → Environment Variables, then redeploy.",
+      error: "RAPIDAPI_KEY not set",
+      hint:  "Add RAPIDAPI_KEY to Vercel → Settings → Environment Variables, then redeploy.",
     }, { headers: { "Cache-Control": "no-store" } });
   }
 
   const out = {
-    apiKeyPresent:      true,
-    apiKeyPrefix:       API_KEY.slice(0, 6) + "…",
-    iplTeamNamesFilter: [...IPL_NAMES],
-    currentMatches:     null,
-    allMatches:         null,
+    apiKeyPrefix: API_KEY.slice(0, 8) + "…",
+    live:     null,
+    upcoming: null,
+    recent:   null,
   };
 
-  // ── /currentMatches ─────────────────────────────────────────────────────
+  // Helper to summarise a match for debug output
+  const summarise = m => ({
+    matchId:    m.matchInfo?.matchId,
+    matchDesc:  m.matchInfo?.matchDesc,
+    seriesName: m.matchInfo?.seriesName || m._seriesName,
+    team1:      m.matchInfo?.team1?.teamName,
+    team2:      m.matchInfo?.team2?.teamName,
+    state:      m.matchInfo?.state,
+    status:     m.matchInfo?.status,
+    startDate:  m.matchInfo?.startDate
+                  ? new Date(parseInt(m.matchInfo.startDate)).toISOString()
+                  : null,
+    venue:      m.matchInfo?.venueName,
+    isIPL:      true, // only IPL matches are included here
+  });
+
   try {
-    const { data: iplMatches, raw } = await fetchCurrentIPLMatches(API_KEY);
-
-    // All team pairs from the raw response (to spot name mismatches)
-    const allPairs = (raw.data || []).map(m => ({
-      name:   m.name,
-      teams:  m.teams || [],
-      status: m.status,
-      date:   m.date,
-      passesIplFilter: (m.teams || []).length >= 2 &&
-                       IPL_NAMES.has(m.teams[0]) &&
-                       IPL_NAMES.has(m.teams[1]),
-    }));
-
-    out.currentMatches = {
-      apiStatus:     raw.status,
-      apiReason:     raw.reason || null,
-      hitsToday:     raw.info?.hitsToday  ?? "n/a",
-      hitsLimit:     raw.info?.hitsLimit  ?? "n/a",
-      totalReturned: raw.data?.length     ?? 0,
-      iplMatchCount: iplMatches.length,
-      iplMatches:    iplMatches.map(m => ({ name: m.name, teams: m.teams, status: m.status, date: m.date })),
-      // Full list — look for IPL team names that DON'T pass our filter
-      allTeamPairs:  allPairs,
+    const { data: live, raw } = await fetchLiveIPLMatches(API_KEY);
+    const allLive = extractAllMatches(raw);
+    out.live = {
+      iplMatchCount: live.length,
+      totalReturned: allLive.length,
+      iplMatches:    live.map(summarise),
+      // Non-IPL matches — useful to spot if something is being filtered
+      otherMatches:  allLive
+        .filter(m => !filterIPL([m]).length)
+        .slice(0, 5)
+        .map(m => ({ seriesName: m._seriesName, team1: m.matchInfo?.team1?.teamName, team2: m.matchInfo?.team2?.teamName })),
     };
   } catch (e) {
-    out.currentMatches = { error: e.message };
+    out.live = { error: e.message };
   }
 
-  // ── /matches ─────────────────────────────────────────────────────────────
   try {
-    const { data: iplMatches, raw } = await fetchAllIPLMatches(API_KEY, 0);
-
-    const allPairs = (raw.data || []).map(m => ({
-      name:   m.name,
-      teams:  m.teams || [],
-      status: m.status,
-      date:   m.date,
-      passesIplFilter: (m.teams || []).length >= 2 &&
-                       IPL_NAMES.has(m.teams[0]) &&
-                       IPL_NAMES.has(m.teams[1]),
-    }));
-
-    out.allMatches = {
-      apiStatus:     raw.status,
-      apiReason:     raw.reason || null,
-      hitsToday:     raw.info?.hitsToday  ?? "n/a",
-      hitsLimit:     raw.info?.hitsLimit  ?? "n/a",
-      totalReturned: raw.data?.length     ?? 0,
-      iplMatchCount: iplMatches.length,
-      iplMatches:    iplMatches.map(m => ({
-        name:   m.name,
-        teams:  m.teams,
-        status: m.status,
-        date:   m.date,
-      })),
-      allTeamPairs: allPairs,
+    const { data: upcoming, raw } = await fetchUpcomingIPLMatches(API_KEY);
+    out.upcoming = {
+      iplMatchCount: upcoming.length,
+      totalReturned: extractAllMatches(raw).length,
+      iplMatches:    upcoming.map(summarise),
     };
   } catch (e) {
-    out.allMatches = { error: e.message };
+    out.upcoming = { error: e.message };
+  }
+
+  try {
+    const { data: recent, raw } = await fetchRecentIPLMatches(API_KEY);
+    out.recent = {
+      iplMatchCount: recent.length,
+      totalReturned: extractAllMatches(raw).length,
+      iplMatches:    recent.map(summarise),
+    };
+  } catch (e) {
+    out.recent = { error: e.message };
   }
 
   return Response.json(out, {

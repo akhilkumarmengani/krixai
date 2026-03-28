@@ -12,22 +12,24 @@
  */
 
 import {
-  fetchCurrentIPLMatches,
-  fetchAllIPLMatchesMultiPage,
+  fetchLiveIPLMatches,
+  fetchUpcomingIPLMatches,
+  fetchRecentIPLMatches,
   normalizeMatch,
   seedPrediction,
-  isCompleted,
-  isLive,
-  isIPLMatch,
-} from "@/lib/cricapi";
+  filterIPL,
+  extractAllMatches,
+} from "@/lib/cricbuzz";
 
 import scheduleData from "@/data/ipl2026-schedule.json";
 
-const API_KEY = process.env.CRICKET_API_KEY;
+// RAPIDAPI_KEY — set in Vercel → Settings → Environment Variables
+const API_KEY = process.env.RAPIDAPI_KEY;
 
-// Static schedule loaded from the committed JSON (no API calls needed for this).
-// Populated by running: node scripts/fetch-ipl-schedule.mjs
-const STATIC_SCHEDULE = (scheduleData?.matches || []).filter(isIPLMatch);
+// ── Static schedule (zero API calls for upcoming/completed lookups) ──────────
+// Populated by running: RAPIDAPI_KEY=xxx node scripts/fetch-ipl-schedule.mjs
+// Cricbuzz match objects stored as-is; we normalize on demand.
+const STATIC_SCHEDULE = scheduleData?.matches || [];
 
 // ─── Demo data (only used when toggle is ON) ────────────────────────────────
 
@@ -91,101 +93,98 @@ export async function GET(request) {
   }
 
   // No API key — tell the client clearly
-  if (!API_KEY || API_KEY === "YOUR_API_KEY_HERE") {
+  if (!API_KEY) {
     return Response.json({
       current:  null,
       previous: null,
       source:   "no_key",
-      debug:    { reason: "CRICKET_API_KEY not set. Add it to .env.local or Vercel env vars." },
+      debug:    { reason: "RAPIDAPI_KEY not set. Add it to .env.local or Vercel env vars." },
     });
   }
 
   const debugLog = [];
 
   try {
-    // ── 1. Fetch current IPL matches ──────────────────────────────────────
-    debugLog.push("Fetching /currentMatches…");
-    const { data: currentRaw, raw: currentRawFull } = await fetchCurrentIPLMatches(API_KEY);
-
-    if (currentRawFull.status !== "success") {
-      debugLog.push(`currentMatches API error: ${currentRawFull.status} — ${currentRawFull.reason || ""}`);
-    } else {
-      debugLog.push(`currentMatches → ${currentRaw.length} IPL match(es) (${currentRawFull.data?.length || 0} total returned)`);
-      if (currentRaw.length > 0) {
-        debugLog.push("Found: " + currentRaw.map(m => m.name).join(" | "));
-      }
-      if (currentRawFull.info) {
-        debugLog.push(`API usage: ${currentRawFull.info.hitsToday}/${currentRawFull.info.hitsLimit} hits today`);
-      }
+    // ── 1. Live matches (/matches/v1/live) ────────────────────────────────
+    debugLog.push("Fetching Cricbuzz /matches/v1/live…");
+    const { data: liveMatches } = await fetchLiveIPLMatches(API_KEY);
+    debugLog.push(`/live → ${liveMatches.length} live IPL match(es)`);
+    if (liveMatches.length > 0) {
+      debugLog.push("Live: " + liveMatches.map(m => m.matchInfo?.seriesName + " — " + m.matchInfo?.matchDesc).join(" | "));
     }
 
-    // Sort: live matches first, then by date ascending (nearest upcoming first)
-    // Uses the same isLive() logic as normalizeMatch so they're always consistent
-    const sortedCurrent = [...currentRaw].sort((a, b) => {
-      const aIsLive = isLive(a) ? 1 : 0;
-      const bIsLive = isLive(b) ? 1 : 0;
-      if (aIsLive !== bIsLive) return bIsLive - aIsLive; // live beats upcoming
-      // Both same liveness — pick the nearest date
-      return new Date(a.dateTimeGMT || a.date) - new Date(b.dateTimeGMT || b.date);
-    });
+    // Use the first live match if available
+    let currentMatch = liveMatches[0] ? normalizeMatch(liveMatches[0]) : null;
 
-    let currentMatch = sortedCurrent[0] ? normalizeMatch(sortedCurrent[0]) : null;
-    if (currentMatch) {
-      debugLog.push(`Using match: ${currentMatch.name} (${currentMatch.isLive ? "LIVE" : "upcoming"})`);
-    }
-
-    // ── 2. Upcoming + completed — prefer static schedule, fall back to API ──
+    // ── 2. Upcoming — prefer static schedule, fall back to Cricbuzz API ──
     const useStaticSchedule = STATIC_SCHEDULE.length > 0;
-    let allMatches;
-    let allMatchesRawFull = { status: "success", reason: "" };
 
-    if (useStaticSchedule) {
-      // Zero API calls — use the committed schedule JSON.
-      allMatches = STATIC_SCHEDULE;
-      debugLog.push(`Using static schedule: ${allMatches.length} IPL match(es) (no API call)`);
-    } else {
-      // Static file not yet populated — fall back to fetching 2 pages from API.
-      debugLog.push("Static schedule empty — fetching /matches (offset 0 + 25) from API…");
-      const result = await fetchAllIPLMatchesMultiPage(API_KEY, [0, 25]);
-      allMatches       = result.data;
-      allMatchesRawFull = result.raw;
-      if (allMatchesRawFull.status !== "success") {
-        debugLog.push(`/matches API error: ${allMatchesRawFull.status} — ${allMatchesRawFull.reason || ""}`);
-      } else {
-        debugLog.push(`/matches (2 pages) → ${allMatches.length} IPL match(es)`);
-      }
-    }
-
-    // If currentMatches returned nothing, find the next upcoming from the schedule
     if (!currentMatch) {
-      debugLog.push("No match in /currentMatches — searching schedule for next upcoming…");
-      const now = new Date();
-      const upcoming = allMatches
-        .filter(m => {
-          if (isCompleted(m)) return false;
-          const matchDate = new Date(m.dateTimeGMT || m.date);
-          return matchDate >= now || (m.status || "").toLowerCase().includes("match not started");
-        })
-        .sort((a, b) =>
-          new Date(a.dateTimeGMT || a.date) - new Date(b.dateTimeGMT || b.date)
-        );
-      if (upcoming[0]) {
-        currentMatch = normalizeMatch(upcoming[0]);
-        debugLog.push(`Next upcoming: ${upcoming[0].name} on ${upcoming[0].date}`);
+      debugLog.push("No live match — searching for next upcoming…");
+
+      if (useStaticSchedule) {
+        // Static schedule: zero API calls
+        const now = new Date();
+        debugLog.push(`Static schedule has ${STATIC_SCHEDULE.length} match(es) — filtering upcoming…`);
+
+        // Static matches are raw Cricbuzz objects; find upcoming ones by startDate
+        const upcoming = STATIC_SCHEDULE
+          .filter(m => {
+            const state = (m.matchInfo?.state || "").toLowerCase();
+            if (state === "complete" || state === "abandon") return false;
+            const ms = parseInt(m.matchInfo?.startDate || "0", 10);
+            return ms > now.getTime();
+          })
+          .sort((a, b) =>
+            parseInt(a.matchInfo?.startDate || 0) - parseInt(b.matchInfo?.startDate || 0)
+          );
+
+        if (upcoming[0]) {
+          currentMatch = normalizeMatch(upcoming[0]);
+          debugLog.push(`Next upcoming (static): ${currentMatch.name} on ${currentMatch.date}`);
+        } else {
+          debugLog.push("No upcoming match found in static schedule");
+        }
+
       } else {
-        debugLog.push("No upcoming IPL match found in schedule");
+        // Fall back: call /matches/v1/upcoming
+        debugLog.push("Static schedule empty — fetching /matches/v1/upcoming from Cricbuzz…");
+        const { data: upcomingMatches } = await fetchUpcomingIPLMatches(API_KEY);
+        debugLog.push(`/upcoming → ${upcomingMatches.length} IPL match(es)`);
+
+        // Sort by startDate ascending (nearest first)
+        const sorted = [...upcomingMatches].sort((a, b) =>
+          parseInt(a.matchInfo?.startDate || 0) - parseInt(b.matchInfo?.startDate || 0)
+        );
+        if (sorted[0]) {
+          currentMatch = normalizeMatch(sorted[0]);
+          debugLog.push(`Next upcoming (API): ${currentMatch.name} on ${currentMatch.date}`);
+        } else {
+          debugLog.push("No upcoming IPL match from Cricbuzz /upcoming");
+        }
       }
     }
 
-    // Last completed match (exclude whichever is currently showing as "current")
-    const completed = allMatches
-      .filter(m => isCompleted(m) && m.id !== (sortedCurrent[0]?.id || currentMatch?.id))
-      .sort((a, b) => new Date(b.dateTimeGMT || b.date) - new Date(a.dateTimeGMT || a.date));
-    debugLog.push(`Completed IPL matches in schedule: ${completed.length}`);
+    if (currentMatch) {
+      debugLog.push(`Showing: ${currentMatch.name} (${currentMatch.isLive ? "LIVE" : "upcoming"})`);
+    }
+
+    // ── 3. Last completed match ───────────────────────────────────────────
+    debugLog.push("Fetching Cricbuzz /matches/v1/recent for completed…");
+    const { data: recentMatches } = await fetchRecentIPLMatches(API_KEY);
+    debugLog.push(`/recent → ${recentMatches.length} recent IPL match(es)`);
+
+    // Sort descending (most recent first), skip whichever is current
+    const currentId = currentMatch?.id;
+    const completed = [...recentMatches]
+      .filter(m => String(m.matchInfo?.matchId) !== currentId)
+      .sort((a, b) =>
+        parseInt(b.matchInfo?.startDate || 0) - parseInt(a.matchInfo?.startDate || 0)
+      );
 
     let previousMatch = null;
-    if (completed.length > 0) {
-      debugLog.push(`Last completed: ${completed[0].name} — ${completed[0].status}`);
+    if (completed[0]) {
+      debugLog.push(`Last completed: ${completed[0].matchInfo?.seriesName} — ${completed[0].matchInfo?.matchDesc}`);
       const prev    = normalizeMatch(completed[0]);
       const pred    = seedPrediction(prev.id, [prev.team1.name, prev.team2.name]);
       const correct = prev.winner === pred.predictedTeam;
@@ -194,18 +193,10 @@ export async function GET(request) {
       debugLog.push("No completed IPL match found yet");
     }
 
-    // Detect rate-limit block (only possible if we called the API)
-    const isBlocked =
-      (currentRawFull.reason || "").toLowerCase().includes("blocked") ||
-      (!useStaticSchedule && (allMatchesRawFull.reason || "").toLowerCase().includes("blocked"));
-
-    const source = isBlocked
-      ? "blocked"
-      : (currentMatch || previousMatch) ? "live" : "empty";
-
-    // Don't cache error/blocked responses — retry sooner
-    const cacheHeader = isBlocked
-      ? "no-store"
+    // Cricbuzz is reliable — no "blocked" state to track
+    const source      = (currentMatch || previousMatch) ? "live" : "empty";
+    const cacheHeader = currentMatch?.isLive
+      ? "s-maxage=60,  stale-while-revalidate=90"
       : "s-maxage=120, stale-while-revalidate=180";
 
     return Response.json({
