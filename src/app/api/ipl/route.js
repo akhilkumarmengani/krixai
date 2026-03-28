@@ -110,16 +110,39 @@ export async function GET(request) {
       return bLive - aLive;
     });
 
-    const currentMatch = sortedCurrent[0] ? normalizeMatch(sortedCurrent[0]) : null;
-    if (!currentMatch) debugLog.push("No current IPL match in API response");
+    let currentMatch = sortedCurrent[0] ? normalizeMatch(sortedCurrent[0]) : null;
+    if (currentMatch) {
+      debugLog.push(`Using match: ${currentMatch.name} (${currentMatch.isLive ? "LIVE" : "upcoming"})`);
+    }
 
-    // ── 2. Fetch last completed IPL match ─────────────────────────────────
-    debugLog.push("Fetching /matches for last completed IPL match…");
+    // ── 2. Fetch all IPL matches (for last completed + upcoming fallback) ──
+    debugLog.push("Fetching /matches…");
     const allMatches = await fetchAllIPLMatches(API_KEY, 0);
     debugLog.push(`/matches → ${allMatches.length} IPL match(es)`);
 
+    // If currentMatches returned nothing, find the next upcoming from /matches
+    if (!currentMatch) {
+      debugLog.push("No match in /currentMatches — searching /matches for next upcoming…");
+      const now = new Date();
+      const upcoming = allMatches
+        .filter(m => {
+          if (isCompleted(m)) return false;
+          const matchDate = new Date(m.dateTimeGMT || m.date);
+          return matchDate >= now || m.status?.toLowerCase().includes("match not started");
+        })
+        .sort((a, b) =>
+          new Date(a.dateTimeGMT || a.date) - new Date(b.dateTimeGMT || b.date)
+        );
+      if (upcoming[0]) {
+        currentMatch = normalizeMatch(upcoming[0]);
+        debugLog.push(`Next upcoming: ${upcoming[0].name} on ${upcoming[0].date}`);
+      } else {
+        debugLog.push("No upcoming IPL match found in /matches either");
+      }
+    }
+
     const completed = allMatches.filter(
-      m => isCompleted(m) && m.id !== sortedCurrent[0]?.id
+      m => isCompleted(m) && m.id !== (sortedCurrent[0]?.id || currentMatch?.id)
     );
     debugLog.push(`Completed IPL matches: ${completed.length}`);
 

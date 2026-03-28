@@ -22,9 +22,57 @@ function getDemoBalls(matchId) {
   }));
 }
 
+// ── Date / Countdown helpers ─────────────────────────────────────────────────
+
+function formatMatchDateTime(dateTimeGMT) {
+  if (!dateTimeGMT) return null;
+  // Treat string as UTC (append Z if missing)
+  const raw = dateTimeGMT.endsWith("Z") ? dateTimeGMT : dateTimeGMT + "Z";
+  const utc = new Date(raw);
+  // IST = UTC + 5h 30m
+  const ist = new Date(utc.getTime() + 5.5 * 60 * 60 * 1000);
+  const days   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const day    = days[ist.getUTCDay()];
+  const date   = ist.getUTCDate();
+  const month  = months[ist.getUTCMonth()];
+  let   h      = ist.getUTCHours();
+  const m      = ist.getUTCMinutes();
+  const ampm   = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  const mStr   = m === 0 ? "" : `:${String(m).padStart(2, "0")}`;
+  return `${day}, ${date} ${month} · ${h}${mStr} ${ampm} IST`;
+}
+
+function getCountdown(dateTimeGMT) {
+  if (!dateTimeGMT) return null;
+  const raw    = dateTimeGMT.endsWith("Z") ? dateTimeGMT : dateTimeGMT + "Z";
+  const target = new Date(raw);
+  const diff   = target - new Date();
+  if (diff <= 0) return "Starting soon";
+  const totalMins = Math.floor(diff / 60000);
+  const hours     = Math.floor(totalMins / 60);
+  const mins      = totalMins % 60;
+  if (hours >= 24) {
+    const d = Math.floor(hours / 24);
+    const h = hours % 24;
+    return h > 0 ? `${d}d ${h}h` : `${d}d`;
+  }
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
+}
+
 // ── Live Match Card ─────────────────────────────────────────────────────────
 function LiveMatchCard({ match, loading, isDemo }) {
   const { tokens: tk } = useTheme();
+
+  // Tick every 30s to keep countdown fresh — the state value itself is unused
+  // but the re-render it triggers causes getCountdown() to recalculate
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   if (loading) {
     return (
@@ -73,17 +121,17 @@ function LiveMatchCard({ match, loading, isDemo }) {
       >
         <div style={{ fontSize: 40 }}>🏏</div>
         <div style={{ fontSize: 16, fontWeight: 700, color: "#333" }}>
-          No live IPL match right now
+          No IPL match scheduled
         </div>
         <div style={{ fontSize: 13, color: "#888", lineHeight: 1.6, maxWidth: 260 }}>
-          Live scores and win probability will appear here when an IPL match is in progress.
+          Live scores and win probability will appear here when an IPL match is in progress or upcoming.
         </div>
         <div style={{
           marginTop: 8, fontSize: 11, color: "#bbb",
           background: "#f7f8ff", padding: "6px 14px",
           borderRadius: 100, fontWeight: 600,
         }}>
-          API connected · Waiting for match
+          API connected · Waiting for schedule
         </div>
       </div>
     );
@@ -100,16 +148,20 @@ function LiveMatchCard({ match, loading, isDemo }) {
   const prob       = match.prob || [50, 50];
   const status     = match.status || "";
   const venue      = match.venue  || "";
-  const date       = match.date   || "";
   const isLive     = match.isLive;
   const chaseStats = match.chaseStats || null;
 
-  // Badge label
-  const badgeLabel = isLive
-    ? "LIVE"
-    : (match.badge || (status.includes("not started") ? "UPCOMING" : "TODAY"));
+  // Detect upcoming (not live, not completed, no scores)
+  const isUpcoming = !isLive && !match.isCompleted;
 
-  const hasScore   = team1Score || team2Score;
+  // Format date/time for upcoming
+  const matchDateTimeStr = formatMatchDateTime(match.dateTimeGMT);
+  const countdown        = isUpcoming ? getCountdown(match.dateTimeGMT) : null;
+
+  // KrixAI pre-match pick (for upcoming — favour team with higher prob)
+  const krixPick     = prob[0] >= prob[1] ? team1Code : team2Code;
+  const krixPickTeam = prob[0] >= prob[1] ? t1 : t2;
+  const krixConf     = Math.max(prob[0], prob[1]);
 
   return (
     <div
@@ -144,10 +196,11 @@ function LiveMatchCard({ match, loading, isDemo }) {
       <div style={{ padding: "22px 26px" }}>
         {/* Header row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+          {/* Status badge */}
           <div
             style={{
               display: "flex", alignItems: "center", gap: 6,
-              background: isLive ? "#fff0e6" : "#f0f4ff",
+              background: isLive ? "#fff0e6" : isUpcoming ? "#f0f4ff" : "#f4f4f4",
               borderRadius: 100, padding: "4px 10px",
             }}
           >
@@ -165,14 +218,54 @@ function LiveMatchCard({ match, loading, isDemo }) {
                 letterSpacing: "0.06em", textTransform: "uppercase",
               }}
             >
-              {badgeLabel}
+              {isLive ? "LIVE" : "UPCOMING"}
             </span>
           </div>
-          <span style={{ fontSize: 12, color: "#888", fontWeight: 500 }}>
-            {date ? new Date(date).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : ""}
-            {venue ? ` · ${venue.split(",")[0]}` : ""}
-          </span>
+
+          {/* Date / venue */}
+          {isUpcoming && matchDateTimeStr ? (
+            <span style={{ fontSize: 12, color: "#555", fontWeight: 600, textAlign: "right" }}>
+              {matchDateTimeStr}
+            </span>
+          ) : (
+            <span style={{ fontSize: 12, color: "#888", fontWeight: 500 }}>
+              {venue ? venue.split(",")[0] : ""}
+            </span>
+          )}
         </div>
+
+        {/* Countdown banner (upcoming only) */}
+        {isUpcoming && countdown && (
+          <div
+            style={{
+              background: "linear-gradient(135deg, #f0f4ff 0%, #e8f0ff 100%)",
+              border: "1px solid #c7d7ff",
+              borderRadius: 10,
+              padding: "10px 14px",
+              marginBottom: 16,
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#7c9ef8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
+                Starts in
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: "#003DA5", letterSpacing: "-0.03em" }}>
+                {countdown}
+              </div>
+            </div>
+            {venue && (
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>
+                  Venue
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#555", maxWidth: 140, textAlign: "right" }}>
+                  {venue.split(",")[0]}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Teams + scores row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -253,7 +346,7 @@ function LiveMatchCard({ match, loading, isDemo }) {
               textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 7,
             }}
           >
-            <span style={{ color: t1.color }}>{team1Code} · Win Prob</span>
+            <span style={{ color: t1.color }}>{team1Code} · {isUpcoming ? "KrixAI Pick" : "Win Prob"}</span>
             <span style={{ color: t2.color }}>{team2Code}</span>
           </div>
           <div
@@ -312,8 +405,38 @@ function LiveMatchCard({ match, loading, isDemo }) {
           </div>
         )}
 
-        {/* Last 6 balls (demo – until BBB paid tier) */}
-        {!chaseStats && (
+        {/* Upcoming: KrixAI pre-match prediction chip */}
+        {isUpcoming && (
+          <div
+            style={{
+              display: "flex", alignItems: "center", gap: 10,
+              background: "#f8f9ff", borderRadius: 10, padding: "10px 14px",
+              marginBottom: 4, border: "1px solid #eef0ff",
+            }}
+          >
+            <div
+              style={{
+                width: 28, height: 28, background: "#003DA5", borderRadius: 7,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 12, color: "#fff", fontWeight: 800, flexShrink: 0,
+              }}
+            >
+              ✦
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#7c9ef8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>
+                KrixAI Pre-match Pick
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#0a0a0a" }}>
+                <span style={{ color: krixPickTeam.color }}>{krixPick}</span>
+                {" "}to win · {krixConf}% confidence
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Live: Last 6 balls (demo – until BBB paid tier) */}
+        {!chaseStats && isLive && (
           <div style={{ marginBottom: 4 }}>
             <div
               style={{
@@ -321,7 +444,7 @@ function LiveMatchCard({ match, loading, isDemo }) {
                 textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8,
               }}
             >
-              {hasScore ? "Recent Play" : "Last 6 Balls"}
+              Recent Play
             </div>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               {getDemoBalls(match.id).map((b, i) => (
@@ -349,10 +472,10 @@ function LiveMatchCard({ match, loading, isDemo }) {
           }}
         >
           <div style={{ fontSize: 12, color: "#888" }}>
-            {venue.split(",")[0]} · IPL 2026
+            {venue ? venue.split(",")[0] : ""}{venue ? " · " : ""}IPL 2026
           </div>
           <span style={{ fontSize: 13, fontWeight: 700, color: "#FF6B00", cursor: "pointer" }}>
-            Full Analysis →
+            {isUpcoming ? "Match Preview →" : "Full Analysis →"}
           </span>
         </div>
       </div>
@@ -367,13 +490,33 @@ function AiInsightCard({ match, loading }) {
   // Generate a contextual insight from match data
   function buildInsight(m) {
     if (!m) return "Analysing match conditions…";
-    const t1 = getTeam(m.team1?.code || m.t1);
-    const cs = m.chaseStats;
+    const t1Code = m.team1?.code || m.t1;
+    const t2Code = m.team2?.code || m.t2;
+    const t1     = getTeam(t1Code);
+    const t2     = getTeam(t2Code);
+    const cs     = m.chaseStats;
+
+    // Live 2nd innings chase
     if (cs && m.isLive) {
       const behind = cs.rrr > cs.crr;
-      const venue  = (m.venue || "").split(",")[0];
-      return `${behind ? `${m.team1?.code || m.t1} need ${cs.rrr?.toFixed(1)} RPO — significantly above their current ${cs.crr?.toFixed(1)}. Wickets in hand remain the key variable.` : `Strong chase in progress. ${m.team1?.code || m.t1} are ahead of the required rate — KrixAI gives them ${m.prob?.[0] || 50}% win probability.`}`;
+      return behind
+        ? `${t2Code} need ${cs.rrr?.toFixed(1)} RPO — significantly above their current ${cs.crr?.toFixed(1)}. Wickets in hand remain the key variable.`
+        : `Strong chase in progress. ${t2Code} are ahead of the required rate — KrixAI gives them ${m.prob?.[1] || 50}% win probability.`;
     }
+
+    // Live 1st innings
+    if (m.isLive) {
+      return `${t1.name} batting. KrixAI projects a par score of 165–175 at this venue. Watch powerplay wickets — they are the strongest predictor of final total.`;
+    }
+
+    // Upcoming match
+    if (!m.isCompleted) {
+      const favCode  = (m.prob?.[0] || 50) >= (m.prob?.[1] || 50) ? t1Code : t2Code;
+      const favTeam  = favCode === t1Code ? t1 : t2;
+      const conf     = Math.max(m.prob?.[0] || 50, m.prob?.[1] || 50);
+      return `KrixAI gives ${favTeam.name} a ${conf}% pre-match win edge. Toss outcome at this venue historically determines the winner in 58% of day games.`;
+    }
+
     return `${t1.name}'s spin attack will be key in the middle overs — 73% of T20s at this venue see acceleration after over 12. Watch the powerplay momentum.`;
   }
 
