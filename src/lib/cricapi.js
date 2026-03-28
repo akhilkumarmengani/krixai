@@ -83,7 +83,12 @@ export function isLive(match) {
   const s = (match.status || "").toLowerCase();
   return (
     s !== "" &&
+    // Explicit "not started" patterns
     !s.includes("match not started") &&
+    !s.includes("match starts at") &&   // CricAPI uses this for scheduled matches
+    !s.includes("starts at") &&
+    !s.includes("scheduled") &&
+    // Completed patterns
     !s.includes("won by") &&
     !s.includes("won the match") &&
     !s.includes("match abandoned") &&

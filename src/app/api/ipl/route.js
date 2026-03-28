@@ -17,6 +17,7 @@ import {
   normalizeMatch,
   seedPrediction,
   isCompleted,
+  isLive,
 } from "@/lib/cricapi";
 
 const API_KEY = process.env.CRICKET_API_KEY;
@@ -111,11 +112,14 @@ export async function GET(request) {
       }
     }
 
-    // Prioritise live over upcoming
+    // Sort: live matches first, then by date ascending (nearest upcoming first)
+    // Uses the same isLive() logic as normalizeMatch so they're always consistent
     const sortedCurrent = [...currentRaw].sort((a, b) => {
-      const aLive = a.status && !a.status.toLowerCase().includes("match not started") ? 1 : 0;
-      const bLive = b.status && !b.status.toLowerCase().includes("match not started") ? 1 : 0;
-      return bLive - aLive;
+      const aIsLive = isLive(a) ? 1 : 0;
+      const bIsLive = isLive(b) ? 1 : 0;
+      if (aIsLive !== bIsLive) return bIsLive - aIsLive; // live beats upcoming
+      // Both same liveness — pick the nearest date
+      return new Date(a.dateTimeGMT || a.date) - new Date(b.dateTimeGMT || b.date);
     });
 
     let currentMatch = sortedCurrent[0] ? normalizeMatch(sortedCurrent[0]) : null;

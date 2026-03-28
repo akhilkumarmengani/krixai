@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import { getTeam } from "@/data/teams";
 
@@ -646,7 +646,12 @@ export default function Header({ onTabChange, demoMode = false, setDemoMode }) {
 
   const [matchData, setMatchData]  = useState(null);
   const [loadingMatch, setLoading] = useState(true);
-  const [dataSource, setSource]    = useState(null); // "live" | "demo"
+  const [dataSource, setSource]    = useState(null); // "live" | "demo" | "blocked" | "empty"
+
+  // Keep a ref to dataSource so the interval can read the latest value
+  // without needing to be in the dependency array (avoids restart on every poll)
+  const dataSourceRef = useRef(null);
+  dataSourceRef.current = dataSource;
 
   // Fetch IPL match data — re-runs when demoMode changes
   useEffect(() => {
@@ -654,7 +659,8 @@ export default function Header({ onTabChange, demoMode = false, setDemoMode }) {
     let intervalId;
 
     async function load() {
-      setLoading(true);
+      // Don't show the full spinner on background polls — only on first load
+      if (!matchData) setLoading(true);
       try {
         const url  = `/api/ipl?demo=${demoMode}`;
         const res  = await fetch(url, { cache: "no-store" });
@@ -671,14 +677,31 @@ export default function Header({ onTabChange, demoMode = false, setDemoMode }) {
 
     load();
 
-    // Poll every 60s when showing live data and match is active
+    // Smart polling:
+    //   • Live match   → every 60s (keep score fresh)
+    //   • Rate limited → every 2min (auto-recover when block clears)
+    //   • Upcoming     → every 5min (schedule rarely changes)
+    //   • Demo mode    → no polling (static data)
     intervalId = setInterval(() => {
-      if (!demoMode && matchData?.isLive) load();
+      if (demoMode) return;
+      const src    = dataSourceRef.current;
+      const isLive = matchData?.isLive;
+      if (src === "blocked" || isLive) {
+        load(); // retry immediately for live + blocked
+      }
     }, 60_000);
+
+    // Also schedule a slower 5-min poll for the non-live, non-blocked case
+    const slowId = setInterval(() => {
+      if (!demoMode && dataSourceRef.current !== "blocked" && !matchData?.isLive) {
+        load();
+      }
+    }, 300_000);
 
     return () => {
       isMounted = false;
       clearInterval(intervalId);
+      clearInterval(slowId);
     };
   }, [demoMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
