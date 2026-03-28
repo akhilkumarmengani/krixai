@@ -16,7 +16,8 @@ import {
 
 export default function HomePage() {
   const { tokens: tk } = useTheme();
-  const [tab, setTab] = useState("feed");
+  const [tab, setTab]         = useState("feed");
+  const [demoMode, setDemoMode] = useState(false); // false = live data, true = demo
 
   return (
     <div
@@ -28,10 +29,14 @@ export default function HomePage() {
       }}
     >
       {/* Hero: sticky nav + split live match view */}
-      <Header onTabChange={setTab} />
+      <Header
+        onTabChange={setTab}
+        demoMode={demoMode}
+        setDemoMode={setDemoMode}
+      />
 
-      {/* Previous match + prediction accuracy — always visible on scroll */}
-      <PreviousMatchSection />
+      {/* Previous match + prediction accuracy */}
+      <PreviousMatchSection demoMode={demoMode} />
 
       {/* Tab navigation */}
       <TabBar activeTab={tab} onTabChange={setTab} />

@@ -228,20 +228,23 @@ function Skeleton({ h = 16, w = "100%", radius = 6, mb = 0 }) {
 }
 
 // ── Main Section ─────────────────────────────────────────────────────────────
-export default function PreviousMatchSection() {
+export default function PreviousMatchSection({ demoMode = false }) {
   const { tokens: tk } = useTheme();
   const [prevMatch, setPrevMatch] = useState(null);
   const [loading,   setLoading]   = useState(true);
+  const [dataSource, setSource]   = useState(null);
 
   useEffect(() => {
-    fetch("/api/ipl", { cache: "no-store" })
+    setLoading(true);
+    fetch(`/api/ipl?demo=${demoMode}`, { cache: "no-store" })
       .then(r => r.json())
       .then(json => {
         setPrevMatch(json.previous || null);
+        setSource(json.source || null);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [demoMode]);
 
   // Don't render at all if no data and not loading
   if (!loading && !prevMatch) return null;
@@ -267,6 +270,22 @@ export default function PreviousMatchSection() {
           padding: "48px 32px",
         }}
       >
+        {/* Demo banner */}
+        {(demoMode || dataSource === "demo") && (
+          <div
+            style={{
+              display: "flex", alignItems: "center", gap: 8,
+              background: "#fef9c3", border: "1px solid #fde047",
+              borderRadius: 8, padding: "8px 14px", marginBottom: 20,
+            }}
+          >
+            <span style={{ fontSize: 13 }}>🧪</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#854d0e" }}>
+              Demo data — toggle &quot;Live&quot; in the nav to see the actual last IPL match
+            </span>
+          </div>
+        )}
+
         {/* Section heading */}
         <div style={{ marginBottom: 32 }}>
           <div

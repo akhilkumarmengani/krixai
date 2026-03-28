@@ -1,17 +1,14 @@
 /**
- * GET /api/ipl
- * ════════════
- * Returns the current live/upcoming IPL match + last completed IPL match
- * with KrixAI prediction accuracy data.
+ * GET /api/ipl?demo=true|false
+ * ════════════════════════════
+ * Returns current live/upcoming IPL match + last completed IPL match.
  *
- * Response shape:
- * {
- *   current:  NormalizedMatch | null,
- *   previous: NormalizedMatch & { prediction: { predictedTeam, confidence, correct } } | null,
- *   source:   "live" | "demo"
- * }
+ * Query params:
+ *   demo=true  → return demo data (only when explicitly requested via toggle)
+ *   demo=false → live data (default)
  *
- * Falls back to demo data if CRICKET_API_KEY is not set or API is unavailable.
+ * Returns null for current/previous when no real data exists.
+ * Never silently substitutes dummy data for real data.
  */
 
 import {
@@ -24,32 +21,28 @@ import {
 
 const API_KEY = process.env.CRICKET_API_KEY;
 
-// ─── Demo fallback data ─────────────────────────────────────────────────────
+// ─── Demo data (only used when toggle is ON) ────────────────────────────────
 
 const DEMO_CURRENT = {
   id:          "demo-ipl-current",
   name:        "Chennai Super Kings vs Mumbai Indians, 3rd Match",
   matchType:   "t20",
-  status:      "CSK - 142/4 (16.2 ov)",
+  status:      "MI need 42 runs off 24 balls",
   venue:       "MA Chidambaram Stadium, Chennai",
   date:        "2026-03-28",
   dateTimeGMT: "2026-03-28T14:00:00",
-  team1: { code: "CSK", name: "Chennai Super Kings", score: "142/4 (16.2 ov)" },
-  team2: { code: "MI",  name: "Mumbai Indians",      score: "183/5 (20.0 ov)" },
-  prob:        [36, 64],
+  team1: { code: "CSK", name: "Chennai Super Kings", score: "183/5 (20.0 ov)" },
+  team2: { code: "MI",  name: "Mumbai Indians",      score: "142/4 (16.2 ov)" },
+  prob:        [64, 36],
   isLive:      true,
   isCompleted: false,
   winner:      null,
   fantasyEnabled: false,
   seriesId:    null,
   chaseStats: {
-    target:          184,
-    chased:          142,
-    needed:          42,
-    oversGone:       16.2,
-    remainingOvers:  3.4,
-    crr:             8.74,
-    rrr:             12.35,
+    target: 184, chased: 142, needed: 42,
+    oversGone: 16.2, remainingOvers: 3.4,
+    crr: 8.74, rrr: 12.35,
   },
 };
 
@@ -75,64 +68,91 @@ const DEMO_PREVIOUS = {
 
 // ─── Route handler ──────────────────────────────────────────────────────────
 
-export async function GET() {
-  // No API key configured → return demo immediately
-  if (!API_KEY || API_KEY === "YOUR_API_KEY_HERE") {
-    return Response.json(
-      { current: DEMO_CURRENT, previous: DEMO_PREVIOUS, source: "demo" },
-      { headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=120" } }
-    );
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const forceDemo = searchParams.get("demo") === "true";
+
+  // Demo mode explicitly toggled on by user
+  if (forceDemo) {
+    return Response.json({
+      current:  DEMO_CURRENT,
+      previous: DEMO_PREVIOUS,
+      source:   "demo",
+      debug:    { reason: "Demo mode enabled via toggle" },
+    });
   }
+
+  // No API key — tell the client clearly
+  if (!API_KEY || API_KEY === "YOUR_API_KEY_HERE") {
+    return Response.json({
+      current:  null,
+      previous: null,
+      source:   "no_key",
+      debug:    { reason: "CRICKET_API_KEY not set. Add it to .env.local or Vercel env vars." },
+    });
+  }
+
+  const debugLog = [];
 
   try {
     // ── 1. Fetch current IPL matches ──────────────────────────────────────
+    debugLog.push("Fetching /currentMatches…");
     const currentRaw = await fetchCurrentIPLMatches(API_KEY);
+    debugLog.push(`currentMatches → ${currentRaw.length} IPL match(es)`);
+    if (currentRaw.length > 0) {
+      debugLog.push("Found: " + currentRaw.map(m => m.name).join(" | "));
+    }
 
-    // Prioritize live matches; fall back to upcoming
+    // Prioritise live over upcoming
     const sortedCurrent = [...currentRaw].sort((a, b) => {
-      const aLive = a.status && !a.status.includes("Match not started") ? 1 : 0;
-      const bLive = b.status && !b.status.includes("Match not started") ? 1 : 0;
+      const aLive = a.status && !a.status.toLowerCase().includes("match not started") ? 1 : 0;
+      const bLive = b.status && !b.status.toLowerCase().includes("match not started") ? 1 : 0;
       return bLive - aLive;
     });
 
-    const currentMatch = sortedCurrent[0]
-      ? normalizeMatch(sortedCurrent[0])
-      : DEMO_CURRENT;
+    const currentMatch = sortedCurrent[0] ? normalizeMatch(sortedCurrent[0]) : null;
+    if (!currentMatch) debugLog.push("No current IPL match in API response");
 
     // ── 2. Fetch last completed IPL match ─────────────────────────────────
+    debugLog.push("Fetching /matches for last completed IPL match…");
     const allMatches = await fetchAllIPLMatches(API_KEY, 0);
+    debugLog.push(`/matches → ${allMatches.length} IPL match(es)`);
 
-    // Filter to completed matches, excluding the current one
     const completed = allMatches.filter(
-      m => isCompleted(m) && m.id !== (sortedCurrent[0]?.id)
+      m => isCompleted(m) && m.id !== sortedCurrent[0]?.id
     );
+    debugLog.push(`Completed IPL matches: ${completed.length}`);
 
-    let previousMatch = DEMO_PREVIOUS;
-
+    let previousMatch = null;
     if (completed.length > 0) {
-      const prevRaw  = completed[0]; // most recent completed
-      const prev     = normalizeMatch(prevRaw);
-      const pred     = seedPrediction(prev.id, [prev.team1.name, prev.team2.name]);
-      const correct  = prev.winner === pred.predictedTeam;
-
-      previousMatch = {
-        ...prev,
-        prediction: { ...pred, correct },
-      };
+      debugLog.push(`Last completed: ${completed[0].name} — ${completed[0].status}`);
+      const prev    = normalizeMatch(completed[0]);
+      const pred    = seedPrediction(prev.id, [prev.team1.name, prev.team2.name]);
+      const correct = prev.winner === pred.predictedTeam;
+      previousMatch = { ...prev, prediction: { ...pred, correct } };
+    } else {
+      debugLog.push("No completed IPL match found in API response");
     }
 
-    return Response.json(
-      { current: currentMatch, previous: previousMatch, source: "live" },
-      { headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=120" } }
-    );
+    const source = (currentMatch || previousMatch) ? "live" : "empty";
+
+    return Response.json({
+      current:  currentMatch,
+      previous: previousMatch,
+      source,
+      debug:    { log: debugLog },
+    }, {
+      headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=120" },
+    });
+
   } catch (err) {
-    console.error("[/api/ipl] Error:", err?.message || err);
-    return Response.json(
-      { current: DEMO_CURRENT, previous: DEMO_PREVIOUS, source: "demo" },
-      {
-        status: 200,
-        headers: { "Cache-Control": "s-maxage=30" },
-      }
-    );
+    const errMsg = err?.message || String(err);
+    console.error("[/api/ipl] Error:", errMsg);
+    return Response.json({
+      current:  null,
+      previous: null,
+      source:   "error",
+      debug:    { error: errMsg, log: debugLog },
+    });
   }
 }

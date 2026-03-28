@@ -10,10 +10,37 @@ import { players } from "@/data/players";
 import { insights } from "@/data/insights";
 import { getTeam } from "@/data/teams";
 
+// ─── Shared empty state ───────────────────────────────────────────────────────
+function EmptyState({ icon, title, subtitle }) {
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      padding: "64px 24px", textAlign: "center",
+      background: "#fafafa", borderRadius: 16,
+      border: "1.5px dashed #e0e0e0",
+    }}>
+      <div style={{ fontSize: 40, marginBottom: 14 }}>{icon}</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: "#333", marginBottom: 8 }}>{title}</div>
+      <div style={{ fontSize: 13, color: "#888", lineHeight: 1.6, maxWidth: 320 }}>{subtitle}</div>
+    </div>
+  );
+}
+
 // ═══ MATCHES SECTION ═══
 export function MatchesSection() {
   const { tokens: tk, tournament } = useTheme();
   const router = useRouter();
+
+  if (matches.length === 0) {
+    return (
+      <EmptyState
+        icon="🏏"
+        title="No matches loaded yet"
+        subtitle="Live IPL match data from CricketData.org will appear here. Make sure CRICKET_API_KEY is set and IPL season is active."
+      />
+    );
+  }
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(${tk.layout.cardMinWidth}px, 1fr))`, gap: tk.spacing.lg }}>
@@ -63,6 +90,16 @@ export function MatchesSection() {
 // ═══ INSIGHTS SECTION ═══
 export function InsightsSection() {
   const { tokens: tk, tournament } = useTheme();
+
+  if (insights.length === 0) {
+    return (
+      <EmptyState
+        icon="🧠"
+        title="AI insights not generated yet"
+        subtitle="KrixAI will generate match insights, venue analysis, and player breakdowns once IPL matches begin."
+      />
+    );
+  }
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(${tk.layout.insightMinWidth}px, 1fr))`, gap: tk.spacing.lg }}>
@@ -118,6 +155,16 @@ export function PlayersSection() {
   const { tokens: tk, tournament } = useTheme();
   const router = useRouter();
   const [expanded, setExpanded] = useState(null);
+
+  if (players.length === 0) {
+    return (
+      <EmptyState
+        icon="🏃"
+        title="No player data yet"
+        subtitle="Player cards with KrixAI ratings, form index, and strength analysis will populate here from live IPL squad data."
+      />
+    );
+  }
 
   return (
     <div

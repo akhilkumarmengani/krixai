@@ -23,7 +23,7 @@ function getDemoBalls(matchId) {
 }
 
 // ── Live Match Card ─────────────────────────────────────────────────────────
-function LiveMatchCard({ match, loading }) {
+function LiveMatchCard({ match, loading, isDemo }) {
   const { tokens: tk } = useTheme();
 
   if (loading) {
@@ -58,7 +58,36 @@ function LiveMatchCard({ match, loading }) {
     );
   }
 
-  if (!match) return null;
+  if (!match) {
+    return (
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: 20,
+          boxShadow: "0 2px 24px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.06)",
+          padding: "48px 32px",
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          textAlign: "center", gap: 12, minHeight: 280,
+        }}
+      >
+        <div style={{ fontSize: 40 }}>🏏</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#333" }}>
+          No live IPL match right now
+        </div>
+        <div style={{ fontSize: 13, color: "#888", lineHeight: 1.6, maxWidth: 260 }}>
+          Live scores and win probability will appear here when an IPL match is in progress.
+        </div>
+        <div style={{
+          marginTop: 8, fontSize: 11, color: "#bbb",
+          background: "#f7f8ff", padding: "6px 14px",
+          borderRadius: 100, fontWeight: 600,
+        }}>
+          API connected · Waiting for match
+        </div>
+      </div>
+    );
+  }
 
   const t1 = getTeam(match.team1?.code || match.t1);
   const t2 = getTeam(match.team2?.code || match.t2);
@@ -94,6 +123,23 @@ function LiveMatchCard({ match, loading }) {
     >
       {/* Top gradient bar */}
       <div style={{ height: 3, background: `linear-gradient(90deg, ${t1.color}, ${t2.color})` }} />
+
+      {/* Demo mode banner */}
+      {isDemo && (
+        <div
+          style={{
+            background: "#fef9c3",
+            borderBottom: "1px solid #fde047",
+            padding: "5px 16px",
+            display: "flex", alignItems: "center", gap: 6,
+          }}
+        >
+          <span style={{ fontSize: 11 }}>🧪</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#854d0e", letterSpacing: "0.04em" }}>
+            DEMO DATA — Toggle &quot;Live&quot; in the nav for real match data
+          </span>
+        </div>
+      )}
 
       <div style={{ padding: "22px 26px" }}>
         {/* Header row */}
@@ -401,7 +447,7 @@ function Ticker({ items }) {
 }
 
 // ── Main Header ──────────────────────────────────────────────────────────────
-export default function Header({ onTabChange }) {
+export default function Header({ onTabChange, demoMode = false, setDemoMode }) {
   const {
     tokens: tk,
     tournament: T,
@@ -410,20 +456,24 @@ export default function Header({ onTabChange }) {
     allTournaments,
   } = useTheme();
 
-  const [matchData, setMatchData]   = useState(null);
-  const [loadingMatch, setLoading]  = useState(true);
+  const [matchData, setMatchData]  = useState(null);
+  const [loadingMatch, setLoading] = useState(true);
+  const [dataSource, setSource]    = useState(null); // "live" | "demo"
 
-  // Fetch live IPL match data on mount (and every 60s for live matches)
+  // Fetch IPL match data — re-runs when demoMode changes
   useEffect(() => {
     let isMounted = true;
     let intervalId;
 
     async function load() {
+      setLoading(true);
       try {
-        const res  = await fetch("/api/ipl", { cache: "no-store" });
+        const url  = `/api/ipl?demo=${demoMode}`;
+        const res  = await fetch(url, { cache: "no-store" });
         const json = await res.json();
         if (isMounted) {
           setMatchData(json.current || null);
+          setSource(json.source || null);
           setLoading(false);
         }
       } catch {
@@ -433,16 +483,16 @@ export default function Header({ onTabChange }) {
 
     load();
 
-    // Poll every 60s if we have a live match
+    // Poll every 60s when showing live data and match is active
     intervalId = setInterval(() => {
-      if (matchData?.isLive) load();
+      if (!demoMode && matchData?.isLive) load();
     }, 60_000);
 
     return () => {
       isMounted = false;
       clearInterval(intervalId);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [demoMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <header style={{ background: "#f7f7f5", position: "relative", overflow: "hidden" }}>
@@ -534,8 +584,45 @@ export default function Header({ onTabChange }) {
               ))}
             </div>
 
-            {/* Right: Ask AI + Get Started */}
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {/* Right: Data toggle + Ask AI + Get Started */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+
+              {/* LIVE / DEMO toggle */}
+              <button
+                onClick={() => setDemoMode && setDemoMode(!demoMode)}
+                title={demoMode ? "Switch to live data" : "Switch to demo data"}
+                style={{
+                  fontFamily: tk.fontFamily,
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "5px 10px 5px 6px",
+                  borderRadius: 100,
+                  border: `1.5px solid ${demoMode ? "#e5e7eb" : "#bbf7d0"}`,
+                  background: demoMode ? "#f9fafb" : "#f0fdf4",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                {/* Indicator dot */}
+                <div
+                  style={{
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: demoMode ? "#9ca3af" : "#16a34a",
+                    boxShadow: demoMode ? "none" : "0 0 0 3px rgba(22,163,74,0.2)",
+                    animation: !demoMode ? "livePulse 2s infinite" : "none",
+                    flexShrink: 0,
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 11, fontWeight: 700,
+                    color: demoMode ? "#6b7280" : "#15803d",
+                    letterSpacing: "0.05em", textTransform: "uppercase",
+                  }}
+                >
+                  {demoMode ? "Demo" : "Live"}
+                </span>
+              </button>
+
               <button
                 onClick={() => onTabChange("chat")}
                 style={{
@@ -692,7 +779,11 @@ export default function Header({ onTabChange }) {
 
           {/* Right: Live match card + AI insight */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <LiveMatchCard match={matchData} loading={loadingMatch} />
+            <LiveMatchCard
+              match={matchData}
+              loading={loadingMatch}
+              isDemo={demoMode || dataSource === "demo"}
+            />
             <AiInsightCard match={matchData} loading={loadingMatch} />
           </div>
         </div>
